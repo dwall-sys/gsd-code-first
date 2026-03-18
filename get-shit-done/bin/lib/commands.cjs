@@ -71,9 +71,9 @@ function cmdListTodos(cwd, area, raw) {
           area: todoArea,
           path: toPosixPath(path.join('.planning', 'todos', 'pending', file)),
         });
-      } catch {}
+      } catch { /* intentionally empty */ }
     }
-  } catch {}
+  } catch { /* intentionally empty */ }
 
   const result = { count, todos };
   output(result, raw, count.toString());
@@ -120,7 +120,7 @@ function cmdHistoryDigest(cwd, raw) {
       for (const dir of currentDirs) {
         allPhaseDirs.push({ name: dir, fullPath: path.join(phasesDir, dir), milestone: null });
       }
-    } catch {}
+    } catch { /* intentionally empty */ }
   }
 
   if (allPhaseDirs.length === 0) {
@@ -412,7 +412,7 @@ function cmdProgressRender(cwd, format, raw) {
 
       phases.push({ number: phaseNum, name: phaseName, plans, summaries, status });
     }
-  } catch {}
+  } catch { /* intentionally empty */ }
 
   const percent = totalPlans > 0 ? Math.min(100, Math.round((totalSummaries / totalPlans) * 100)) : 0;
 
@@ -559,7 +559,7 @@ function cmdStats(cwd, format, raw) {
         status: 'Not Started',
       });
     }
-  } catch {}
+  } catch { /* intentionally empty */ }
 
   try {
     const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
@@ -595,7 +595,7 @@ function cmdStats(cwd, format, raw) {
         status,
       });
     }
-  } catch {}
+  } catch { /* intentionally empty */ }
 
   const phases = [...phasesByNumber.values()].sort((a, b) => comparePhaseNum(a.number, b.number));
   const completedPhases = phases.filter(p => p.status === 'Complete').length;
@@ -613,7 +613,7 @@ function cmdStats(cwd, format, raw) {
       requirementsComplete = checked ? checked.length : 0;
       requirementsTotal = requirementsComplete + (unchecked ? unchecked.length : 0);
     }
-  } catch {}
+  } catch { /* intentionally empty */ }
 
   // Last activity from STATE.md
   let lastActivity = null;
@@ -626,7 +626,7 @@ function cmdStats(cwd, format, raw) {
         || stateContent.match(/^Last activity:\s*(.+)$/im);
       if (activityMatch) lastActivity = activityMatch[1].trim();
     }
-  } catch {}
+  } catch { /* intentionally empty */ }
 
   // Git stats
   let gitCommits = 0;
