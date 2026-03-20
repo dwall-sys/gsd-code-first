@@ -4055,14 +4055,36 @@ function install(isGlobal, runtime = 'claude') {
 
     if (!hasContextMonitorHook) {
       settings.hooks[postToolEvent].push({
+        matcher: 'Bash|Edit|Write|MultiEdit|Agent|Task',
         hooks: [
           {
             type: 'command',
-            command: contextMonitorCommand
+            command: contextMonitorCommand,
+            timeout: 10
           }
         ]
       });
       console.log(`  ${green}✓${reset} Configured context window monitor hook`);
+    } else {
+      // Migrate existing context monitor hooks: add matcher and timeout if missing
+      for (const entry of settings.hooks[postToolEvent]) {
+        if (entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-context-monitor'))) {
+          let migrated = false;
+          if (!entry.matcher) {
+            entry.matcher = 'Bash|Edit|Write|MultiEdit|Agent|Task';
+            migrated = true;
+          }
+          for (const h of entry.hooks) {
+            if (h.command && h.command.includes('gsd-context-monitor') && !h.timeout) {
+              h.timeout = 10;
+              migrated = true;
+            }
+          }
+          if (migrated) {
+            console.log(`  ${green}✓${reset} Updated context monitor hook (added matcher + timeout)`);
+          }
+        }
+      }
     }
   }
 
