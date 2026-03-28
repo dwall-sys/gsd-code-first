@@ -18,17 +18,17 @@ Code is the plan — developers build first and extract structured planning from
 - ✓ gsd-annotator agent for retroactive code annotation — Phase 1
 - ✓ annotate command that spawns annotator + runs extract-plan — Phase 1
 - ✓ Extended config schema (phase_modes, arc settings, default_phase_mode) — Phase 1
+- ✓ gsd-prototyper agent that builds prototypes with ARC annotations — Phase 2
+- ✓ prototype command that spawns prototyper with project context — Phase 2
+- ✓ gsd-code-planner agent that reads code + tags to generate plans — Phase 2
+- ✓ Modified gsd-executor with ARC comment obligation (gsd-arc-executor wrapper) — Phase 2
+- ✓ Modified gsd-planner with code-based planning mode (gsd-arc-planner wrapper) — Phase 2
 
 ### Active
 
-- [ ] gsd-prototyper agent that builds prototypes with ARC annotations
-- [ ] prototype command that spawns prototyper with project context
-- [ ] gsd-code-planner agent that reads code + tags to generate plans
 - [ ] iterate command (extract-tags → code-planner → approval → executor)
 - [ ] deep-plan command wrapping discuss-phase + plan-phase
 - [ ] set-mode command for per-phase mode configuration
-- [ ] Modified gsd-executor with ARC comment obligation
-- [ ] Modified gsd-planner with code-based planning mode
 - [ ] Updated installer (bin/install.js) with new agents + commands
 - [ ] Updated package.json (name: gsd-code-first)
 - [ ] Updated help command with new commands
@@ -84,4 +84,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-28 after Phase 1 completion*
+*Last updated: 2026-03-28 after Phase 2 completion*
