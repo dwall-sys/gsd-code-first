@@ -25,6 +25,8 @@ const VALID_CONFIG_KEYS = new Set([
   'git.branching_strategy', 'git.phase_branch_template', 'git.milestone_branch_template', 'git.quick_branch_template',
   'planning.commit_docs', 'planning.search_gitignored',
   'hooks.context_warnings',
+  'arc.enabled', 'arc.tag_prefix', 'arc.comment_anchors',
+  'phase_modes.default', 'default_phase_mode',
 ]);
 
 /**
@@ -133,6 +135,13 @@ function buildNewProjectConfig(userChoices) {
       context_warnings: true,
     },
     agent_skills: {},
+    arc: {
+      enabled: true,
+      tag_prefix: '@gsd-',
+      comment_anchors: ['//', '#', '/*', '--'],
+    },
+    phase_modes: {},
+    default_phase_mode: 'plan-first',
   };
 
   // Three-level deep merge: hardcoded <- userDefaults <- choices
@@ -160,6 +169,17 @@ function buildNewProjectConfig(userChoices) {
       ...(userDefaults.agent_skills || {}),
       ...(choices.agent_skills || {}),
     },
+    arc: {
+      ...hardcoded.arc,
+      ...(userDefaults.arc || {}),
+      ...(choices.arc || {}),
+    },
+    phase_modes: {
+      ...hardcoded.phase_modes,
+      ...(userDefaults.phase_modes || {}),
+      ...(choices.phase_modes || {}),
+    },
+    default_phase_mode: choices.default_phase_mode || userDefaults.default_phase_mode || hardcoded.default_phase_mode,
   };
 }
 
@@ -434,6 +454,7 @@ function getCmdConfigSetModelProfileResultMessage(
 }
 
 module.exports = {
+  buildNewProjectConfig,
   cmdConfigEnsureSection,
   cmdConfigSet,
   cmdConfigGet,
