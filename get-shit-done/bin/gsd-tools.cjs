@@ -152,6 +152,7 @@ const frontmatter = require('./lib/frontmatter.cjs');
 const profilePipeline = require('./lib/profile-pipeline.cjs');
 const profileOutput = require('./lib/profile-output.cjs');
 const workstream = require('./lib/workstream.cjs');
+const arcScanner = require('./lib/arc-scanner.cjs');
 
 // ─── Arg parsing helpers ──────────────────────────────────────────────────────
 
@@ -907,6 +908,19 @@ async function runCommand(command, args, cwd, raw) {
       } else {
         error('Unknown workstream subcommand. Available: create, list, status, complete, set, get, progress');
       }
+      break;
+    }
+
+    case 'extract-tags': {
+      const allArgs = args.slice(1);
+      const { phase: phaseFilter, type: typeFilter, format, output: outputFile } = parseNamedArgs(allArgs, ['phase', 'type', 'format', 'output']);
+      const targetPath = allArgs.find(a => !a.startsWith('--')) || cwd;
+      arcScanner.cmdExtractTags(cwd, targetPath, {
+        phaseFilter,
+        typeFilter,
+        format: format || 'json',
+        outputFile,
+      });
       break;
     }
 
