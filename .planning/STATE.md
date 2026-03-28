@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-03-28T20:08:50.891Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-03-28T20:08:58.946Z"
 last_activity: 2026-03-28
 progress:
   total_phases: 3
@@ -85,6 +85,9 @@ Recent decisions affecting current work:
 - [Phase 01-annotation-foundation]: gsd:extract-plan slash command writes to .planning/prototype/CODE-INVENTORY.md per Decision D-09
 - [Phase 02-core-agents]: gsd-code-planner reads CODE-INVENTORY.md as primary input and bans XML output, research sections, and plan-check blocks (D-08, D-09)
 - [Phase 02-core-agents]: @gsd-todo maps to tasks, @gsd-context/@gsd-decision to context section, @gsd-constraint to hard limits, @gsd-risk to special handling (D-09, D-10)
+- [Phase 02-core-agents]: Prototyper reads arc-standard.md at startup (same pattern as gsd-annotator) — keeps agent lean and spec authoritative
+- [Phase 02-core-agents]: prototype command uses $HOME not ~ in bash commands for portability
+- [Phase 02-core-agents]: Auto-chain uses same extract-tags command as annotate — consistent pattern across annotation-producing commands
 
 ### Pending Todos
 
@@ -97,6 +100,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-28T20:08:43.286Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-03-28T20:08:58.944Z
+Stopped at: Completed 02-01-PLAN.md
 Resume file: None

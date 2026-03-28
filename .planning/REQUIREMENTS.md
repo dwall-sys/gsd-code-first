@@ -26,10 +26,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Prototyper
 
-- [ ] **PROT-01**: gsd-prototyper agent builds working prototypes with ARC annotations embedded in code
-- [ ] **PROT-02**: prototype command spawns prototyper with PROJECT.md, REQUIREMENTS.md, ROADMAP.md context
-- [ ] **PROT-03**: prototype command supports --phases flag for scoping and auto-runs extract-plan on completion
-- [ ] **PROT-04**: PROTOTYPE-LOG.md template captures what was built, decisions made, and open @gsd-todos
+- [x] **PROT-01**: gsd-prototyper agent builds working prototypes with ARC annotations embedded in code
+- [x] **PROT-02**: prototype command spawns prototyper with PROJECT.md, REQUIREMENTS.md, ROADMAP.md context
+- [x] **PROT-03**: prototype command supports --phases flag for scoping and auto-runs extract-plan on completion
+- [x] **PROT-04**: PROTOTYPE-LOG.md template captures what was built, decisions made, and open @gsd-todos
 
 ### Code Planner
 
@@ -124,10 +124,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ANNOT-01 | Phase 1 | Complete |
 | ANNOT-02 | Phase 1 | Complete |
 | MODE-02 | Phase 1 | Complete |
-| PROT-01 | Phase 2 | Pending |
-| PROT-02 | Phase 2 | Pending |
-| PROT-03 | Phase 2 | Pending |
-| PROT-04 | Phase 2 | Pending |
+| PROT-01 | Phase 2 | Complete |
+| PROT-02 | Phase 2 | Complete |
+| PROT-03 | Phase 2 | Complete |
+| PROT-04 | Phase 2 | Complete |
 | PLAN-01 | Phase 2 | Complete |
 | PLAN-02 | Phase 2 | Complete |
 | AMOD-01 | Phase 2 | Pending |
