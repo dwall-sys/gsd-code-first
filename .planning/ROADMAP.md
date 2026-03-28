@@ -85,7 +85,7 @@ Plans:
 
 Plans:
 - [ ] 04-01-PLAN.md — Remove stale execution_context blocks + fix gsd-annotator frontmatter tests
-- [ ] 04-02-PLAN.md — Add Known Limitations section to README.md
+- [x] 04-02-PLAN.md — Add Known Limitations section to README.md
 
 ## Progress
 
@@ -97,4 +97,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Annotation Foundation | 5/5 | Complete   | 2026-03-28 |
 | 2. Core Agents | 3/3 | Complete   | 2026-03-28 |
 | 3. Workflow, Distribution, and Docs | 3/3 | Complete   | 2026-03-28 |
-| 4. Tech Debt Cleanup | 0/2 | Not started | - |
+| 4. Tech Debt Cleanup | 1/2 | In Progress|  |
