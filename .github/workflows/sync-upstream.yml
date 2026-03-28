@@ -1,0 +1,151 @@
+name: Sync Upstream GSD
+
+on:
+  schedule:
+    # Check daily at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/gsd-build/get-shit-done.git 2>/dev/null || true
+          git fetch upstream main
+
+      - name: Check for new upstream commits
+        id: check
+        run: |
+          UPSTREAM_HEAD=$(git rev-parse upstream/main)
+          # Check if upstream/main is already an ancestor of our main
+          if git merge-base --is-ancestor "$UPSTREAM_HEAD" HEAD; then
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+            echo "Already up to date with upstream."
+          else
+            COMMIT_COUNT=$(git rev-list HEAD..upstream/main --count)
+            echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+            echo "commit_count=$COMMIT_COUNT" >> "$GITHUB_OUTPUT"
+            echo "$COMMIT_COUNT new upstream commits found."
+          fi
+
+      - name: Create sync branch and merge
+        if: steps.check.outputs.up_to_date == 'false'
+        id: merge
+        run: |
+          BRANCH="sync/upstream-$(date +%Y%m%d)"
+          git checkout -b "$BRANCH"
+
+          # Attempt merge
+          if git merge upstream/main --no-edit; then
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+          else
+            # If conflicts, commit the conflict markers for manual resolution
+            git add -A
+            git commit --no-edit -m "chore: merge upstream (conflicts need resolution)" || true
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          git push origin "$BRANCH"
+
+      - name: Restore fork-specific overrides
+        if: steps.check.outputs.up_to_date == 'false' && steps.merge.outputs.conflict == 'false'
+        run: |
+          # Ensure our fork-specific changes survive the merge
+          NEEDS_FIX=false
+
+          # 1. Check gsd-check-update.js still references our package
+          if grep -q "get-shit-done-cc" hooks/gsd-check-update.js 2>/dev/null; then
+            sed -i 's/get-shit-done-cc/gsd-code-first/g' hooks/gsd-check-update.js
+            NEEDS_FIX=true
+          fi
+
+          # 2. Check update.md still references our package
+          if grep -q "get-shit-done-cc" get-shit-done/workflows/update.md 2>/dev/null; then
+            sed -i 's/get-shit-done-cc/gsd-code-first/g' get-shit-done/workflows/update.md
+            NEEDS_FIX=true
+          fi
+
+          # 3. Check package.json name
+          if ! grep -q '"name": "gsd-code-first"' package.json; then
+            echo "WARNING: package.json name was overwritten by upstream merge"
+            NEEDS_FIX=true
+          fi
+
+          if [ "$NEEDS_FIX" = true ]; then
+            git add -A
+            git commit -m "chore: restore fork-specific overrides after upstream merge" || true
+            git push origin "${{ steps.merge.outputs.branch }}"
+          fi
+
+      - name: Create PR (clean merge)
+        if: steps.check.outputs.up_to_date == 'false' && steps.merge.outputs.conflict == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --title "Sync upstream GSD (${{ steps.check.outputs.commit_count }} commits)" \
+            --body "$(cat <<'EOF'
+          ## Upstream Sync
+
+          Merges **${{ steps.check.outputs.commit_count }}** new commits from [gsd-build/get-shit-done](https://github.com/gsd-build/get-shit-done).
+
+          ### Checklist
+          - [ ] Fork-specific overrides preserved (package name, update check, workflows)
+          - [ ] New upstream agents/commands don't conflict with Code-First additions
+          - [ ] Tests pass
+
+          ### After merging
+          Bump version in `package.json` and run `npm publish`.
+          EOF
+          )" \
+            --base main \
+            --head "${{ steps.merge.outputs.branch }}"
+
+      - name: Create PR (with conflicts)
+        if: steps.check.outputs.up_to_date == 'false' && steps.merge.outputs.conflict == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --title "Sync upstream GSD (CONFLICTS - manual resolution needed)" \
+            --body "$(cat <<'EOF'
+          ## Upstream Sync (Conflicts)
+
+          Attempted to merge **${{ steps.check.outputs.commit_count }}** new commits from upstream but conflicts occurred.
+
+          ### Manual resolution needed
+          ```bash
+          git checkout ${{ steps.merge.outputs.branch }}
+          # Resolve conflicts in marked files
+          git add .
+          git commit
+          git push
+          ```
+
+          ### Files likely to conflict
+          - `package.json` (name, version)
+          - `hooks/gsd-check-update.js` (package name reference)
+          - `get-shit-done/workflows/update.md` (package name reference)
+          - `README.md` (fork prepended section)
+          EOF
+          )" \
+            --base main \
+            --head "${{ steps.merge.outputs.branch }}" \
+            --label "upstream-sync"
