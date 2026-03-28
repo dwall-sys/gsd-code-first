@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Annotation Foundation** - ARC standard, tag scanner, config schema, and extract-plan command (completed 2026-03-28)
 - [x] **Phase 2: Core Agents** - gsd-prototyper, gsd-annotator, gsd-code-planner, and modified agent behavior (completed 2026-03-28)
-- [ ] **Phase 3: Workflow, Distribution, and Docs** - iterate loop, mode commands, installer, and documentation
+- [x] **Phase 3: Workflow, Distribution, and Docs** - iterate loop, mode commands, installer, and documentation (completed 2026-03-28)
 
 ## Phase Details
 
@@ -69,7 +69,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md — set-mode subcommand + config.cjs patch + set-mode.md + deep-plan.md commands
 - [x] 03-02-PLAN.md — iterate.md command (flagship code-first workflow loop)
-- [ ] 03-03-PLAN.md — Distribution verification + help.md update + README.md documentation
+- [x] 03-03-PLAN.md — Distribution verification + help.md update + README.md documentation
 
 ## Progress
 
@@ -80,4 +80,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Annotation Foundation | 5/5 | Complete   | 2026-03-28 |
 | 2. Core Agents | 3/3 | Complete   | 2026-03-28 |
-| 3. Workflow, Distribution, and Docs | 2/3 | In Progress|  |
+| 3. Workflow, Distribution, and Docs | 3/3 | Complete   | 2026-03-28 |

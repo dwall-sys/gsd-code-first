@@ -61,15 +61,15 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Distribution
 
-- [ ] **DIST-01**: bin/install.js copies all new agent files and command files during installation
-- [ ] **DIST-02**: package.json updated with name "gsd-code-first" and correct bin entry
-- [ ] **DIST-03**: Installer markers use GSD_CF_ namespace prefix to avoid conflicts with upstream
+- [x] **DIST-01**: bin/install.js copies all new agent files and command files during installation
+- [x] **DIST-02**: package.json updated with name "gsd-code-first" and correct bin entry
+- [x] **DIST-03**: Installer markers use GSD_CF_ namespace prefix to avoid conflicts with upstream
 
 ### Documentation
 
-- [ ] **DOCS-01**: help command updated to list all new commands with descriptions
-- [ ] **DOCS-02**: README.md documents the code-first workflow and installation
-- [ ] **DOCS-03**: User guide explains ARC tags, prototype → iterate workflow, and mode switching
+- [x] **DOCS-01**: help command updated to list all new commands with descriptions
+- [x] **DOCS-02**: README.md documents the code-first workflow and installation
+- [x] **DOCS-03**: User guide explains ARC tags, prototype → iterate workflow, and mode switching
 
 ## v2 Requirements
 
@@ -138,12 +138,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ITER-03 | Phase 3 | Complete |
 | MODE-01 | Phase 3 | Complete |
 | MODE-03 | Phase 3 | Complete |
-| DIST-01 | Phase 3 | Pending |
-| DIST-02 | Phase 3 | Pending |
-| DIST-03 | Phase 3 | Pending |
-| DOCS-01 | Phase 3 | Pending |
-| DOCS-02 | Phase 3 | Pending |
-| DOCS-03 | Phase 3 | Pending |
+| DIST-01 | Phase 3 | Complete |
+| DIST-02 | Phase 3 | Complete |
+| DIST-03 | Phase 3 | Complete |
+| DOCS-01 | Phase 3 | Complete |
+| DOCS-02 | Phase 3 | Complete |
+| DOCS-03 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 31 total
