@@ -603,4 +603,32 @@ Example config:
 - Read `.planning/STATE.md` for current context
 - Check `.planning/ROADMAP.md` for phase status
 - Run `/gsd:progress` to check where you're up to
+
+## Code-First Commands
+
+These commands are added by the `gsd-code-first` fork for code-first development workflows.
+
+**`/gsd:prototype`**
+Build a working code prototype with embedded @gsd-tags, then auto-extract CODE-INVENTORY.md.
+Usage: `/gsd:prototype [path] [--phases N]`
+
+**`/gsd:annotate`**
+Retroactively annotate existing code with @gsd-tags, then auto-extract CODE-INVENTORY.md.
+Usage: `/gsd:annotate [path] [--glob PATTERN]`
+
+**`/gsd:extract-plan`**
+Scan codebase for @gsd-tags and produce .planning/prototype/CODE-INVENTORY.md.
+Usage: `/gsd:extract-plan [--phase N] [--type TAG_TYPE]`
+
+**`/gsd:iterate`**
+Run the full code-first loop: extract tags, generate plan, approve, execute.
+Usage: `/gsd:iterate [--non-interactive] [--verify] [--annotate]`
+
+**`/gsd:set-mode`**
+Configure the per-phase workflow mode (code-first, plan-first, hybrid).
+Usage: `/gsd:set-mode <mode> [--phase N]`
+
+**`/gsd:deep-plan`**
+Chain discuss-phase then plan-phase for phases needing upfront reasoning.
+Usage: `/gsd:deep-plan <phase-number> [flags]`
 </reference>
