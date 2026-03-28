@@ -924,6 +924,20 @@ async function runCommand(command, args, cwd, raw) {
       break;
     }
 
+    case 'set-mode': {
+      const allArgs = args.slice(1);
+      const named = parseNamedArgs(allArgs, ['phase']);
+      const modeValue = allArgs.find(a => !a.startsWith('--'));
+      const VALID_MODES = new Set(['code-first', 'plan-first', 'hybrid']);
+      if (!modeValue || !VALID_MODES.has(modeValue)) {
+        error('Usage: set-mode <code-first|plan-first|hybrid> [--phase N]');
+      }
+      const keyPath = named.phase ? `phase_modes.${named.phase}` : 'default_phase_mode';
+      const result = config.setConfigValue(cwd, keyPath, modeValue);
+      core.output(result, raw, `Mode set: ${keyPath} = ${modeValue}`);
+      break;
+    }
+
     default:
       error(`Unknown command: ${command}`);
   }

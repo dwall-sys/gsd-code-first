@@ -38,6 +38,8 @@ function isValidConfigKey(keyPath) {
   if (VALID_CONFIG_KEYS.has(keyPath)) return true;
   // Allow agent_skills.<agent-type> with any agent type string
   if (/^agent_skills\.[a-zA-Z0-9_-]+$/.test(keyPath)) return true;
+  // Allow phase_modes.<number> for per-phase mode overrides
+  if (/^phase_modes\.\d+$/.test(keyPath)) return true;
   return false;
 }
 
@@ -460,4 +462,5 @@ module.exports = {
   cmdConfigGet,
   cmdConfigSetModelProfile,
   cmdConfigNewProject,
+  setConfigValue,
 };
