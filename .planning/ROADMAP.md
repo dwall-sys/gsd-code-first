@@ -15,6 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Annotation Foundation** - ARC standard, tag scanner, config schema, and extract-plan command (completed 2026-03-28)
 - [x] **Phase 2: Core Agents** - gsd-prototyper, gsd-annotator, gsd-code-planner, and modified agent behavior (completed 2026-03-28)
 - [x] **Phase 3: Workflow, Distribution, and Docs** - iterate loop, mode commands, installer, and documentation (completed 2026-03-28)
+- [ ] **Phase 4: Tech Debt Cleanup** - Fix stale workflow refs, annotator test failures, document ARC routing limitation
 
 ## Phase Details
 
@@ -71,13 +72,25 @@ Plans:
 - [x] 03-02-PLAN.md — iterate.md command (flagship code-first workflow loop)
 - [x] 03-03-PLAN.md — Distribution verification + help.md update + README.md documentation
 
+### Phase 4: Tech Debt Cleanup
+**Goal**: Close all tech debt items from v1.0 milestone audit — fix stale workflow references, annotator test failures, and document ARC routing limitation
+**Depends on**: Phase 3
+**Requirements**: (gap closure — no new requirements)
+**Gap Closure**: Closes gaps from v1.0-MILESTONE-AUDIT.md
+**Success Criteria** (what must be TRUE):
+  1. Commands annotate.md, prototype.md, and extract-plan.md do not reference non-existent workflow files
+  2. All agent-frontmatter tests pass (including gsd-annotator)
+  3. README.md or a known-issues section documents that ARC wrapper agents are only reachable via /gsd:iterate (not via /gsd:execute-phase or /gsd:plan-phase)
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3
+Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Annotation Foundation | 5/5 | Complete   | 2026-03-28 |
 | 2. Core Agents | 3/3 | Complete   | 2026-03-28 |
 | 3. Workflow, Distribution, and Docs | 3/3 | Complete   | 2026-03-28 |
+| 4. Tech Debt Cleanup | 0/TBD | Not started | - |
