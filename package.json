@@ -1,6 +1,6 @@
 {
   "name": "gsd-code-first",
-  "version": "2.0.0-alpha.1",
+  "version": "1.0.0",
   "description": "Code-First fork of Get Shit Done — AI-native development with code-as-planning",
   "bin": {
     "get-shit-done-cc": "bin/install.js"
@@ -29,11 +29,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gsd-build/get-shit-done.git"
+    "url": "git+https://github.com/dwall-sys/gsd-code-first.git"
   },
-  "homepage": "https://github.com/gsd-build/get-shit-done",
+  "homepage": "https://github.com/dwall-sys/gsd-code-first",
   "bugs": {
-    "url": "https://github.com/gsd-build/get-shit-done/issues"
+    "url": "https://github.com/dwall-sys/gsd-code-first/issues"
   },
   "engines": {
     "node": ">=20.0.0"

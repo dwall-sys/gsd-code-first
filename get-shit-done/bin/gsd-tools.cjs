@@ -913,8 +913,12 @@ async function runCommand(command, args, cwd, raw) {
 
     case 'extract-tags': {
       const allArgs = args.slice(1);
-      const { phase: phaseFilter, type: typeFilter, format, output: outputFile } = parseNamedArgs(allArgs, ['phase', 'type', 'format', 'output']);
-      const targetPath = allArgs.find(a => !a.startsWith('--')) || cwd;
+      const namedFlags = ['phase', 'type', 'format', 'output'];
+      const { phase: phaseFilter, type: typeFilter, format, output: outputFile } = parseNamedArgs(allArgs, namedFlags);
+      // Filter out --flag tokens and their values so positional arg detection works
+      const consumed = new Set();
+      for (const f of namedFlags) { const i = allArgs.indexOf(`--${f}`); if (i !== -1) { consumed.add(i); if (allArgs[i + 1] && !allArgs[i + 1].startsWith('--')) consumed.add(i + 1); } }
+      const targetPath = allArgs.filter((_, i) => !consumed.has(i) && !allArgs[i].startsWith('--'))[0] || cwd;
       arcScanner.cmdExtractTags(cwd, targetPath, {
         phaseFilter,
         typeFilter,
