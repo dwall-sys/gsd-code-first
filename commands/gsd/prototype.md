@@ -230,6 +230,96 @@ Log: "No PRD-linked todos to track."
 - Path to PROTOTYPE-LOG.md: `.planning/prototype/PROTOTYPE-LOG.md`
 - Path to CODE-INVENTORY.md: `.planning/prototype/CODE-INVENTORY.md`
 
-<!-- Steps 6-7 (autonomous iteration loop and final report) will be added by Plan 02 -->
+## Step 6 — Autonomous iteration loop
+
+**Skip this step entirely if no PRD was provided** (user typed 'skip' in Step 1). In that case, proceed directly to Step 7.
+
+Initialize iteration counter: `ITERATION=0`
+Maximum iterations: 5 (hard cap per D-05)
+
+**Loop start:**
+
+Check the AC_REMAINING count from Step 5 (or from the previous iteration's recount).
+
+**If AC_REMAINING is 0:** Log "All PRD acceptance criteria resolved after [ITERATION] iteration(s)." and proceed to Step 7.
+
+**If ITERATION equals 5:** Log "Hard iteration cap (5) reached. [AC_REMAINING] AC-linked todos remain unresolved." and proceed to Step 7.
+
+**Otherwise, run one iteration:**
+
+**6a.** Increment ITERATION counter.
+
+**6b.** Log: "--- Iteration [ITERATION]/5 --- ([AC_REMAINING] AC todos remaining)"
+
+**6c. Spawn gsd-code-planner** via Task tool:
+- Pass `.planning/prototype/CODE-INVENTORY.md` as primary input
+- The code-planner reads `@gsd-todo` tags as the task backlog
+- Wait for plan to be produced in `.planning/prototype/`
+
+**6d. Auto-approve the inner plan.** Log: "Auto-approving iteration plan (autonomous prototype mode)."
+Do NOT use AskUserQuestion here — the outer confirmation gate (Step 3) already captured user intent. Inner plans are always auto-approved per research recommendation.
+
+**6e. Spawn executor** based on ARC mode:
+```bash
+ARC_ENABLED=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get arc.enabled 2>/dev/null || echo "true")
+```
+- If ARC_ENABLED is "true": spawn `gsd-arc-executor` via Task tool
+- If ARC_ENABLED is "false": spawn `gsd-executor` via Task tool
+- Pass the plan path from `.planning/prototype/` as context
+- Wait for executor to complete
+
+**6f. Re-run extract-tags** to refresh CODE-INVENTORY.md:
+```bash
+node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" extract-tags --format md --output .planning/prototype/CODE-INVENTORY.md
+```
+
+**6g. Recount AC-linked todos:**
+```bash
+AC_REMAINING=$(grep -c "ref:AC-" .planning/prototype/CODE-INVENTORY.md 2>/dev/null || echo "0")
+```
+Log: "AC todos remaining after iteration [ITERATION]: [AC_REMAINING]"
+
+**6h. --interactive pause point** (per D-10, implements PRD-06):
+Check if `--interactive` is present in `$ARGUMENTS`.
+
+**If --interactive IS present:**
+Display iteration summary to the user:
+- "Iteration [ITERATION] complete."
+- "Files changed this iteration: [list from executor summary]"
+- "@gsd-todo count remaining: [AC_REMAINING]"
+- "Iterations remaining: [5 - ITERATION]"
+
+Then use AskUserQuestion: "Continue to next iteration? [yes / stop / redirect: instructions]"
+- If `yes`, `y`, or `continue`: loop back to Loop start
+- If `stop`: Log "Stopping at user request." and proceed to Step 7
+- If `redirect: <instructions>`: incorporate user instructions into the next iteration's code-planner context, then loop back
+
+**If --interactive is NOT present:** loop back to Loop start silently (per D-11, fully autonomous).
+
+**Loop end** (reached via AC_REMAINING=0, hard cap, or user stop in --interactive mode).
+
+## Step 7 — Final report
+
+Display completion summary to the user:
+
+```
+prototype complete.
+
+PRD source: [--prd flag | auto-detected .planning/PRD.md | pasted content | none]
+Acceptance criteria: [total ACs found] total, [resolved] resolved, [AC_REMAINING] remaining
+Iterations used: [ITERATION] of 5 maximum
+Executor: [gsd-arc-executor | gsd-executor]
+
+Artifacts:
+- Prototype log: .planning/prototype/PROTOTYPE-LOG.md
+- Code inventory: .planning/prototype/CODE-INVENTORY.md
+- Iteration plans: .planning/prototype/*.md
+```
+
+**If AC_REMAINING > 0:**
+```
+Note: [AC_REMAINING] acceptance criteria remain as @gsd-todo tags.
+Run /gsd:iterate to continue implementation, or /gsd:prototype --interactive to step through remaining items.
+```
 
 </process>
