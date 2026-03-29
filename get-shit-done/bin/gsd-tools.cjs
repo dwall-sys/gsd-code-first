@@ -133,6 +133,11 @@
  *   init milestone-op                  All context for milestone operations
  *   init map-codebase                  All context for map-codebase workflow
  *   init progress                      All context for progress workflow
+ *
+ * Test Detection:
+ *   detect-test-framework [dir]        Detect test framework from package.json
+ *                                      Outputs: { framework, testCommand, filePattern }
+ *                                      Defaults to cwd if dir not provided
  */
 
 const fs = require('fs');
@@ -939,6 +944,14 @@ async function runCommand(command, args, cwd, raw) {
       const keyPath = named.phase ? `phase_modes.${named.phase}` : 'default_phase_mode';
       const result = config.setConfigValue(cwd, keyPath, modeValue);
       core.output(result, raw, `Mode set: ${keyPath} = ${modeValue}`);
+      break;
+    }
+
+    case 'detect-test-framework': {
+      const targetDir = args[1] || cwd;
+      const testDetector = require('./lib/test-detector.cjs');
+      const result = testDetector.detectTestFramework(targetDir);
+      core.output(result, raw, `${result.framework}: ${result.testCommand}`);
       break;
     }
 
