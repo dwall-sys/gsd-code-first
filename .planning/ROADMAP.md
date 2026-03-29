@@ -82,7 +82,9 @@ Plans:
   3. The review output includes manual verification steps that the user can follow to check UI, navigation, and UX behavior
   4. REVIEW-CODE.md is written with a structured schema containing at most 5 prioritized next steps, each with file path, severity level, and a concrete action
   5. Test suite results are executed and included in the review output, giving the reviewer full pass/fail context alongside the evaluation
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 08-01-PLAN.md -- Create /gsd:review-code command orchestrator and gsd-reviewer agent with two-stage evaluation pipeline
 
 ## Progress
 
@@ -97,4 +99,4 @@ Plans:
 | 5. ARC as Default | v1.1 | 1/1 | Complete   | 2026-03-29 |
 | 6. PRD-to-Prototype Pipeline | v1.1 | 2/2 | Complete   | 2026-03-29 |
 | 7. Test Agent | v1.1 | 2/2 | Complete   | 2026-03-29 |
-| 8. Review Agent + Command | v1.1 | 0/TBD | Not started | - |
+| 8. Review Agent + Command | v1.1 | 0/1 | Not started | - |
