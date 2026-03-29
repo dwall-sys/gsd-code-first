@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Autonomous Prototype & Review Loop
-status: executing
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-03-29T11:42:31.987Z"
+status: verifying
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-03-29T11:45:41.807Z"
 last_activity: 2026-03-29
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-29)
 
 Phase: 06 (prd-to-prototype-pipeline) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-03-29
 
 Progress: [░░░░░░░░░░] 0%
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 05 P01 | 5 | 2 tasks | 4 files |
 | Phase 06 P01 | 2 | 1 tasks | 1 files |
+| Phase 06 P02 | 2 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Recent decisions affecting current work:
 - [Phase 06]: PRD ingestion stays in command orchestrator (prototype.md), not in gsd-prototyper agent — keeps agent reusable and format-agnostic (D-02)
 - [Phase 06]: Semantic AC extraction handles all PRD formats (prose, bullets, tables, user stories) via inline prompt — avoids structural regex brittleness (Pitfall 16)
 - [Phase 06]: non-interactive bypasses AC confirmation gate only; interactive enables loop pauses — two separate axes (Q3 resolved)
+- [Phase 06]: Inner loop plans always auto-approved in prototype.md Step 6 — outer confirmation gate is sufficient; inner approval would interrupt autonomous flow
+- [Phase 06]: prototype.md loop exits on: AC_REMAINING==0, ITERATION==5 (hard cap), or user stop in --interactive mode
 
 ### Pending Todos
 
@@ -85,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-29T11:42:31.984Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-03-29T11:45:41.805Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None

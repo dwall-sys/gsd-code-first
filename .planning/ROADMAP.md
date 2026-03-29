@@ -22,7 +22,7 @@
 **Milestone Goal:** Make the code-first workflow the standard routine -- PRD in, functional prototype out, with tests written and review produced.
 
 - [x] **Phase 5: ARC as Default** - Make ARC annotations always-on for new installs while preserving existing configs (completed 2026-03-29)
-- [ ] **Phase 6: PRD-to-Prototype Pipeline** - Overhaul /gsd:prototype to ingest a PRD and drive scaffold generation from acceptance criteria
+- [x] **Phase 6: PRD-to-Prototype Pipeline** - Overhaul /gsd:prototype to ingest a PRD and drive scaffold generation from acceptance criteria (completed 2026-03-29)
 - [ ] **Phase 7: Test Agent** - New gsd-tester agent that writes and runs tests against annotated code with RED-GREEN discipline
 - [ ] **Phase 8: Review Agent + Command** - New gsd-reviewer agent and /gsd:review-code command that evaluates spec compliance, code quality, and test results
 
@@ -51,10 +51,10 @@ Plans:
   4. User sees a confirmation listing the parsed acceptance criteria before any code is generated, and can abort if the list is wrong
   5. Each acceptance criterion extracted from the PRD appears as a @gsd-todo tag in the generated prototype code, creating a direct traceability link
   6. User can run /gsd:prototype --interactive to step through prototype generation decision-by-decision rather than autonomously
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 06-01-PLAN.md -- Rewrite prototype.md with PRD pipeline Steps 0-5 (PRD ingestion, AC extraction, confirmation gate, first pass)
-- [ ] 06-02-PLAN.md -- Add autonomous iteration loop (Step 6) and final report (Step 7) with --interactive support
+- [x] 06-02-PLAN.md -- Add autonomous iteration loop (Step 6) and final report (Step 7) with --interactive support
 **UI hint**: no
 
 ### Phase 7: Test Agent
@@ -92,6 +92,6 @@ Plans:
 | 3. Workflow, Distribution, and Docs | v1.0 | 3/3 | Complete | 2026-03-28 |
 | 4. Tech Debt Cleanup | v1.0 | 2/2 | Complete | 2026-03-28 |
 | 5. ARC as Default | v1.1 | 1/1 | Complete   | 2026-03-29 |
-| 6. PRD-to-Prototype Pipeline | v1.1 | 1/2 | In Progress|  |
+| 6. PRD-to-Prototype Pipeline | v1.1 | 2/2 | Complete   | 2026-03-29 |
 | 7. Test Agent | v1.1 | 0/TBD | Not started | - |
 | 8. Review Agent + Command | v1.1 | 0/TBD | Not started | - |

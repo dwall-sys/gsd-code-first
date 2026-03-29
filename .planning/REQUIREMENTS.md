@@ -18,8 +18,8 @@ Requirements for v1.1 Autonomous Prototype & Review Loop. Each maps to roadmap p
 - [x] **PRD-02**: User can specify a PRD path via --prd flag
 - [x] **PRD-03**: User is prompted to paste PRD content if no file is found
 - [x] **PRD-04**: Each acceptance criterion from the PRD becomes a @gsd-todo tag in prototype code
-- [ ] **PRD-05**: Prototype iterates autonomously until functional, with a hard iteration cap
-- [ ] **PRD-06**: User can enable step-by-step mode with --interactive flag
+- [x] **PRD-05**: Prototype iterates autonomously until functional, with a hard iteration cap
+- [x] **PRD-06**: User can enable step-by-step mode with --interactive flag
 - [x] **PRD-07**: User sees a requirements-found confirmation before scaffold generation begins
 
 ### Test Agent
@@ -79,8 +79,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PRD-02 | Phase 6 | Complete |
 | PRD-03 | Phase 6 | Complete |
 | PRD-04 | Phase 6 | Complete |
-| PRD-05 | Phase 6 | Pending |
-| PRD-06 | Phase 6 | Pending |
+| PRD-05 | Phase 6 | Complete |
+| PRD-06 | Phase 6 | Complete |
 | PRD-07 | Phase 6 | Complete |
 | TEST-01 | Phase 7 | Pending |
 | TEST-02 | Phase 7 | Pending |
