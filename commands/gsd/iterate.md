@@ -85,11 +85,12 @@ Wait for the user's response. If the user responds with anything other than clea
 
 Check if ARC mode is enabled via bash:
 ```bash
-node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get arc.enabled
+ARC_ENABLED=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get arc.enabled 2>/dev/null || echo "true")
 ```
 
-- If the result is `true`: spawn `gsd-arc-executor` via the Task tool, passing the plan path from `.planning/prototype/` as context.
-- If the result is `false` or not set: spawn `gsd-executor` via the Task tool, passing the plan path from `.planning/prototype/` as context.
+Log the executor selection to the user:
+- If ARC_ENABLED is `true`: display "ARC mode: enabled -- using gsd-arc-executor" then spawn `gsd-arc-executor` via the Task tool, passing the plan path from `.planning/prototype/` as context.
+- If ARC_ENABLED is `false`: display "ARC mode: disabled (config) -- using gsd-executor" then spawn `gsd-executor` via the Task tool, passing the plan path from `.planning/prototype/` as context.
 
 Wait for the executor to complete. If the executor fails, **STOP** and report:
 > "iterate failed at step 4: executor error. Check the plan output and executor logs for details."

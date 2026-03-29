@@ -50,7 +50,7 @@ This ensures project-specific patterns, conventions, and best practices are appl
 Check if ARC mode is enabled:
 
 ```bash
-ARC_ENABLED=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get arc.enabled 2>/dev/null || echo "false")
+ARC_ENABLED=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get arc.enabled 2>/dev/null || echo "true")
 ```
 
 If ARC_ENABLED is `"false"` or empty, skip all ARC-specific obligations and behave as a standard executor for the remainder of execution. Only apply ARC obligations when ARC_ENABLED is `"true"`.

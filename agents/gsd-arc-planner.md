@@ -59,7 +59,7 @@ This ensures task actions reference the correct patterns and libraries for this 
 Check ARC mode and phase mode:
 
 ```bash
-ARC_ENABLED=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get arc.enabled 2>/dev/null || echo "false")
+ARC_ENABLED=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get arc.enabled 2>/dev/null || echo "true")
 PHASE_MODE=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get default_phase_mode 2>/dev/null || echo "plan-first")
 ```
 
