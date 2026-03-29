@@ -26,7 +26,7 @@ Requirements for v1.1 Autonomous Prototype & Review Loop. Each maps to roadmap p
 
 - [ ] **TEST-01**: gsd-tester agent writes runnable unit/integration tests for annotated code
 - [ ] **TEST-02**: gsd-tester executes tests and confirms green before completing
-- [ ] **TEST-03**: gsd-tester auto-detects the project's test framework (jest, vitest, node:test, etc.)
+- [x] **TEST-03**: gsd-tester auto-detects the project's test framework (jest, vitest, node:test, etc.)
 - [ ] **TEST-04**: gsd-tester annotates untested/hard-to-test code paths with @gsd-risk tags
 - [ ] **TEST-05**: Tests must fail against stubs before passing against implementation (RED-GREEN)
 
@@ -84,7 +84,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PRD-07 | Phase 6 | Complete |
 | TEST-01 | Phase 7 | Pending |
 | TEST-02 | Phase 7 | Pending |
-| TEST-03 | Phase 7 | Pending |
+| TEST-03 | Phase 7 | Complete |
 | TEST-04 | Phase 7 | Pending |
 | TEST-05 | Phase 7 | Pending |
 | REV-01 | Phase 8 | Pending |
