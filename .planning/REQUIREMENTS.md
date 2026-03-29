@@ -73,33 +73,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ARC-01 | — | Pending |
-| ARC-02 | — | Pending |
-| PRD-01 | — | Pending |
-| PRD-02 | — | Pending |
-| PRD-03 | — | Pending |
-| PRD-04 | — | Pending |
-| PRD-05 | — | Pending |
-| PRD-06 | — | Pending |
-| PRD-07 | — | Pending |
-| TEST-01 | — | Pending |
-| TEST-02 | — | Pending |
-| TEST-03 | — | Pending |
-| TEST-04 | — | Pending |
-| TEST-05 | — | Pending |
-| REV-01 | — | Pending |
-| REV-02 | — | Pending |
-| REV-03 | — | Pending |
-| REV-04 | — | Pending |
-| REV-05 | — | Pending |
-| REV-06 | — | Pending |
-| REV-07 | — | Pending |
+| ARC-01 | Phase 5 | Pending |
+| ARC-02 | Phase 5 | Pending |
+| PRD-01 | Phase 6 | Pending |
+| PRD-02 | Phase 6 | Pending |
+| PRD-03 | Phase 6 | Pending |
+| PRD-04 | Phase 6 | Pending |
+| PRD-05 | Phase 6 | Pending |
+| PRD-06 | Phase 6 | Pending |
+| PRD-07 | Phase 6 | Pending |
+| TEST-01 | Phase 7 | Pending |
+| TEST-02 | Phase 7 | Pending |
+| TEST-03 | Phase 7 | Pending |
+| TEST-04 | Phase 7 | Pending |
+| TEST-05 | Phase 7 | Pending |
+| REV-01 | Phase 8 | Pending |
+| REV-02 | Phase 8 | Pending |
+| REV-03 | Phase 8 | Pending |
+| REV-04 | Phase 8 | Pending |
+| REV-05 | Phase 8 | Pending |
+| REV-06 | Phase 8 | Pending |
+| REV-07 | Phase 8 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 21 total
-- Mapped to phases: 0
-- Unmapped: 21
+- Mapped to phases: 21
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-29*
-*Last updated: 2026-03-29 after initial definition*
+*Last updated: 2026-03-29 after roadmap creation*

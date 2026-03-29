@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Autonomous Prototype & Review Loop
-status: defining_requirements
+status: ready_to_plan
 stopped_at: null
 last_updated: "2026-03-29T00:00:00.000Z"
 last_activity: 2026-03-29
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,15 +20,15 @@ progress:
 
 See: .planning/PROJECT.md (updated 2026-03-29)
 
-**Core value:** Code is the plan — developers build first and extract structured planning from annotated code
-**Current focus:** Defining requirements for v1.1
+**Core value:** Code is the plan -- developers build first and extract structured planning from annotated code
+**Current focus:** Phase 5 -- ARC as Default (ready to plan)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-29 — Milestone v1.1 started
+Phase: 5 of 8 (ARC as Default)
+Plan: — of — in current phase
+Status: Ready to plan
+Last activity: 2026-03-29 — v1.1 roadmap created, phases 5-8 defined
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -37,8 +37,8 @@ Progress: [░░░░░░░░░░] 0%
 **Velocity:**
 
 - Total plans completed: 0
-- Average duration: —
-- Total execution time: —
+- Average duration: --
+- Total execution time: --
 
 **By Phase:**
 
@@ -48,23 +48,10 @@ Progress: [░░░░░░░░░░] 0%
 
 **Recent Trend:**
 
-- Last 5 plans: —
-- Trend: —
+- Last 5 plans: --
+- Trend: --
 
 *Updated after each plan completion*
-| Phase 01-annotation-foundation P04 | 3 | 1 tasks | 1 files |
-| Phase 01 P01 | 2 | 1 tasks | 1 files |
-| Phase 01-annotation-foundation P05 | 2min | 2 tasks | 2 files |
-| Phase 01-annotation-foundation P02 | 12 | 2 tasks | 2 files |
-| Phase 01-annotation-foundation P03 | 2min | 2 tasks | 3 files |
-| Phase 02-core-agents P02 | 2min | 1 tasks | 1 files |
-| Phase 02-core-agents P01 | 2min | 2 tasks | 2 files |
-| Phase 02-core-agents P03 | 310s | 2 tasks | 2 files |
-| Phase 03-workflow-distribution-and-docs P02 | 1min | 1 tasks | 1 files |
-| Phase 03-workflow-distribution-and-docs P01 | 5min | 2 tasks | 4 files |
-| Phase 03-workflow-distribution-and-docs P03 | 10min | 2 tasks | 2 files |
-| Phase 04-tech-debt-cleanup P02 | 2min | 1 tasks | 1 files |
-| Phase 04-tech-debt-cleanup P01 | 1min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -73,37 +60,11 @@ Progress: [░░░░░░░░░░] 0%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- Initialization: Fork rather than PR upstream (fundamentally different workflow philosophy)
-- Initialization: Regex-based tag extraction (simpler than AST, language-agnostic)
-- Initialization: Preserve all original commands (users can mix code-first and plan-first per phase)
-- Research: gsd-executor modification to be implemented as new gsd-arc-executor.md wrapper, not a patch to upstream file
-- [Phase 01-annotation-foundation]: Exported buildNewProjectConfig() for programmatic config access by Phase 2 agents
-- [Phase 01-annotation-foundation]: arc.enabled/tag_prefix/comment_anchors and phase_modes/default_phase_mode added as ADDITIVE config extension
-- [Phase 01]: Tag names are frozen as of v1.0 — 8 @gsd-tag types will not be renamed (arc-standard.md)
-- [Phase 01]: Comment anchor rule: @gsd-tags only valid when comment token is first non-whitespace content on the line
-- [Phase 01-annotation-foundation]: gsd-annotator reads arc-standard.md, PROJECT.md, REQUIREMENTS.md before annotating (D-13)
-- [Phase 01-annotation-foundation]: annotate command auto-chains to extract-plan via gsd-tools.cjs extract-tags on completion (D-12)
-- [Phase 01-annotation-foundation]: gsd-annotator hard constraint: never modify code logic, function signatures, or existing comments
-- [Phase 01-annotation-foundation]: Used new RegExp(TAG_LINE_RE.source, 'gm') per scanFile call to avoid lastIndex state bugs with /gm flag
-- [Phase 01-annotation-foundation]: VALID_TAG_TYPES Set guard drops unknown tag type names — prevents typos leaking into CODE-INVENTORY.md
-- [Phase 01-annotation-foundation]: Inline trailing comment false positive (const x = 1; // @gsd-context ...) excluded by TAG_LINE_RE ^[\t]* anchor — correct per ARC Comment Anchor Rule
-- [Phase 01-annotation-foundation]: Used parseNamedArgs() helper for extract-tags flag parsing to match the style of all other case branches
-- [Phase 01-annotation-foundation]: gsd:extract-plan slash command writes to .planning/prototype/CODE-INVENTORY.md per Decision D-09
-- [Phase 02-core-agents]: gsd-code-planner reads CODE-INVENTORY.md as primary input and bans XML output, research sections, and plan-check blocks (D-08, D-09)
-- [Phase 02-core-agents]: @gsd-todo maps to tasks, @gsd-context/@gsd-decision to context section, @gsd-constraint to hard limits, @gsd-risk to special handling (D-09, D-10)
-- [Phase 02-core-agents]: Prototyper reads arc-standard.md at startup (same pattern as gsd-annotator) — keeps agent lean and spec authoritative
-- [Phase 02-core-agents]: prototype command uses $HOME not ~ in bash commands for portability
-- [Phase 02-core-agents]: Auto-chain uses same extract-tags command as annotate — consistent pattern across annotation-producing commands
-- [Phase 02-core-agents]: Option A wrapper delegation: self-contained prose files carry all upstream behavior inline, no runtime reads of upstream agent files (avoids installation-path fragility)
-- [Phase 02-core-agents]: gsd-arc-planner output format is always standard PLAN.md -- code-first mode changes INPUT (CODE-INVENTORY.md vs REQUIREMENTS.md), not output structure
-- [Phase 03-workflow-distribution-and-docs]: Approval gate is mandatory -- no code path reaches executor without explicit yes/y/approve or --non-interactive flag
-- [Phase 03-workflow-distribution-and-docs]: arc.enabled config determines executor choice at runtime (gsd-arc-executor vs gsd-executor)
-- [Phase 03-workflow-distribution-and-docs]: Exported setConfigValue() from config.cjs so gsd-tools.cjs set-mode uses already-imported config module rather than inline re-require
-- [Phase 03-workflow-distribution-and-docs]: Dynamic phase_modes.N key validation added as regex pattern in isValidConfigKey() parallel to agent_skills dynamic pattern
-- [Phase 03-workflow-distribution-and-docs]: Prepend fork section to README.md with horizontal rule divider before upstream content -- preserves upstream merge compatibility
-- [Phase 03-workflow-distribution-and-docs]: Cross-reference arc-standard.md from README.md rather than duplicating tag syntax -- single source of truth per D-21
-- [Phase 04-tech-debt-cleanup]: Known Limitations section placed before upstream separator in README.md to preserve upstream merge compatibility
-- [Phase 04-tech-debt-cleanup]: Stale execution_context blocks referencing non-existent workflow files removed — process sections carry all execution logic
+- Research: /gsd:review-code chosen as command name (not /gsd:review) -- avoids collision with existing review.md command (Pitfall 15)
+- Research: PRD ingestion belongs in command orchestrator, not in gsd-prototyper agent -- keeps agent prompt stable across PRD formats
+- Research: Test execution belongs in /gsd:review-code command layer, not inside gsd-tester -- prevents context window blockage on long test suites
+- Research: arc.enabled defaults to true via config.arc?.enabled ?? true -- new installs get true, explicit false configs are preserved unchanged
+- Research: REVIEW-CODE.md (not REVIEW.md or REVIEWS.md) is the hard-constraint output file name for review artifacts
 
 ### Pending Todos
 
@@ -111,11 +72,12 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 2 (gsd-code-planner): HIGH risk agent — prompt structure for reliable PLAN.md from CODE-INVENTORY.md is not fully resolved. Consider /gsd:research-phase before planning Phase 2.
-- Phase 1: ARC tag standard must be treated as versioned from day one. Run at least one real annotation session before freezing the spec.
+- Phase 6 (PRD pipeline): PRD requirements extraction approach needs a concrete agent prompt validated against at least 2-3 real PRD formats before command is written. Run /gsd:research-phase before planning.
+- Phase 7 (gsd-tester): RED-GREEN discipline requires a concrete definition of "stub implementation" that the agent can detect. Must be in agent prompt before implementation.
+- Phase 8 (review command): Two-stage Reviewer + Judge pattern needs an explicit Judge prompt design before Phase 8 begins. This is the highest-complexity design task in v1.1.
 
 ## Session Continuity
 
-Last session: 2026-03-28T21:28:57.682Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-03-29
+Stopped at: Roadmap created for v1.1, phases 5-8 defined, ready to plan Phase 5
 Resume file: None
