@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Autonomous Prototype & Review Loop
-status: verifying
-stopped_at: Phase 6 context gathered
-last_updated: "2026-03-29T11:27:15.437Z"
+status: executing
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-03-29T11:42:31.987Z"
 last_activity: 2026-03-29
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  total_plans: 3
+  completed_plans: 2
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Code is the plan -- developers build first and extract structured planning from annotated code
-**Current focus:** Phase 05 — arc-as-default
+**Current focus:** Phase 06 — prd-to-prototype-pipeline
 
 ## Current Position
 
-Phase: 6
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 06 (prd-to-prototype-pipeline) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-03-29
 
 Progress: [░░░░░░░░░░] 0%
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 05 P01 | 5 | 2 tasks | 4 files |
+| Phase 06 P01 | 2 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,9 @@ Recent decisions affecting current work:
 - Research: REVIEW-CODE.md (not REVIEW.md or REVIEWS.md) is the hard-constraint output file name for review artifacts
 - [Phase 05]: ARC_ENABLED fallback changed from false to true in all three agent/command files — fresh installs without config.json default to ARC on (ARC-01)
 - [Phase 05]: iterate.md step 4 now uses bash variable with fallback and logs executor selection; config.cjs left untouched (D-01)
+- [Phase 06]: PRD ingestion stays in command orchestrator (prototype.md), not in gsd-prototyper agent — keeps agent reusable and format-agnostic (D-02)
+- [Phase 06]: Semantic AC extraction handles all PRD formats (prose, bullets, tables, user stories) via inline prompt — avoids structural regex brittleness (Pitfall 16)
+- [Phase 06]: non-interactive bypasses AC confirmation gate only; interactive enables loop pauses — two separate axes (Q3 resolved)
 
 ### Pending Todos
 
@@ -81,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-29T11:27:15.435Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-prd-to-prototype-pipeline/06-CONTEXT.md
+Last session: 2026-03-29T11:42:31.984Z
+Stopped at: Completed 06-01-PLAN.md
+Resume file: None

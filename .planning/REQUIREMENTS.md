@@ -14,13 +14,13 @@ Requirements for v1.1 Autonomous Prototype & Review Loop. Each maps to roadmap p
 
 ### PRD Pipeline
 
-- [ ] **PRD-01**: User can run /gsd:prototype with a PRD file auto-detected at .planning/PRD.md
-- [ ] **PRD-02**: User can specify a PRD path via --prd flag
-- [ ] **PRD-03**: User is prompted to paste PRD content if no file is found
-- [ ] **PRD-04**: Each acceptance criterion from the PRD becomes a @gsd-todo tag in prototype code
+- [x] **PRD-01**: User can run /gsd:prototype with a PRD file auto-detected at .planning/PRD.md
+- [x] **PRD-02**: User can specify a PRD path via --prd flag
+- [x] **PRD-03**: User is prompted to paste PRD content if no file is found
+- [x] **PRD-04**: Each acceptance criterion from the PRD becomes a @gsd-todo tag in prototype code
 - [ ] **PRD-05**: Prototype iterates autonomously until functional, with a hard iteration cap
 - [ ] **PRD-06**: User can enable step-by-step mode with --interactive flag
-- [ ] **PRD-07**: User sees a requirements-found confirmation before scaffold generation begins
+- [x] **PRD-07**: User sees a requirements-found confirmation before scaffold generation begins
 
 ### Test Agent
 
@@ -75,13 +75,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | ARC-01 | Phase 5 | Complete |
 | ARC-02 | Phase 5 | Complete |
-| PRD-01 | Phase 6 | Pending |
-| PRD-02 | Phase 6 | Pending |
-| PRD-03 | Phase 6 | Pending |
-| PRD-04 | Phase 6 | Pending |
+| PRD-01 | Phase 6 | Complete |
+| PRD-02 | Phase 6 | Complete |
+| PRD-03 | Phase 6 | Complete |
+| PRD-04 | Phase 6 | Complete |
 | PRD-05 | Phase 6 | Pending |
 | PRD-06 | Phase 6 | Pending |
-| PRD-07 | Phase 6 | Pending |
+| PRD-07 | Phase 6 | Complete |
 | TEST-01 | Phase 7 | Pending |
 | TEST-02 | Phase 7 | Pending |
 | TEST-03 | Phase 7 | Pending |

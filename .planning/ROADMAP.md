@@ -51,9 +51,9 @@ Plans:
   4. User sees a confirmation listing the parsed acceptance criteria before any code is generated, and can abort if the list is wrong
   5. Each acceptance criterion extracted from the PRD appears as a @gsd-todo tag in the generated prototype code, creating a direct traceability link
   6. User can run /gsd:prototype --interactive to step through prototype generation decision-by-decision rather than autonomously
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 06-01-PLAN.md -- Rewrite prototype.md with PRD pipeline Steps 0-5 (PRD ingestion, AC extraction, confirmation gate, first pass)
+- [x] 06-01-PLAN.md -- Rewrite prototype.md with PRD pipeline Steps 0-5 (PRD ingestion, AC extraction, confirmation gate, first pass)
 - [ ] 06-02-PLAN.md -- Add autonomous iteration loop (Step 6) and final report (Step 7) with --interactive support
 **UI hint**: no
 
@@ -92,6 +92,6 @@ Plans:
 | 3. Workflow, Distribution, and Docs | v1.0 | 3/3 | Complete | 2026-03-28 |
 | 4. Tech Debt Cleanup | v1.0 | 2/2 | Complete | 2026-03-28 |
 | 5. ARC as Default | v1.1 | 1/1 | Complete   | 2026-03-29 |
-| 6. PRD-to-Prototype Pipeline | v1.1 | 0/2 | Planned | - |
+| 6. PRD-to-Prototype Pipeline | v1.1 | 1/2 | In Progress|  |
 | 7. Test Agent | v1.1 | 0/TBD | Not started | - |
 | 8. Review Agent + Command | v1.1 | 0/TBD | Not started | - |
