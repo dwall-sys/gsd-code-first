@@ -1,11 +1,14 @@
 # Architecture Patterns
 
 **Domain:** Node.js CLI framework with AI agent orchestration, code annotation parsing, and extensible command system
-**Researched:** 2026-03-28
+**Researched:** 2026-03-29 (v1.1 milestone update)
+**Confidence:** HIGH — based on direct inspection of all existing agents, commands, workflows, and gsd-tools.cjs
 
-## Existing System Architecture (GSD Upstream)
+---
 
-Before describing the Code-First additions, the upstream architecture must be understood — all new components are additive to this foundation.
+## Existing System Architecture (v1.0 baseline — unchanged)
+
+The upstream architecture and v1.0 Code-First extensions are documented below as a stable reference. All v1.1 additions are strictly additive to this foundation.
 
 ### Current Layer Map
 
@@ -30,15 +33,15 @@ Before describing the Code-First additions, the upstream architecture must be un
 │  - gsd-executor    │   │  ├── lib/core.cjs                  │
 │  - gsd-planner     │   │  ├── lib/state.cjs                 │
 │  - gsd-verifier    │   │  ├── lib/phase.cjs                 │
-│  - gsd-debugger    │   │  ├── lib/config.cjs                │
-│  - ... (13 total)  │   │  ├── lib/init.cjs                  │
-└────────────────────┘   │  ├── lib/roadmap.cjs               │
-                         │  ├── lib/template.cjs              │
-                         │  ├── lib/verify.cjs                │
-                         │  └── lib/model-profiles.cjs        │
-                         └──────────────────┬─────────────────┘
-                                            │ reads/writes
-                                            ▼
+│  - gsd-arc-executor│   │  ├── lib/config.cjs                │
+│  - gsd-arc-planner │   │  ├── lib/init.cjs                  │
+│  - gsd-prototyper  │   │  ├── lib/roadmap.cjs               │
+│  - gsd-code-planner│   │  ├── lib/template.cjs              │
+│  - gsd-annotator   │   │  ├── lib/verify.cjs                │
+│  - ... (23 total)  │   │  └── lib/model-profiles.cjs        │
+└────────────────────┘   └──────────────────────────┬─────────┘
+                                                     │
+                                                     ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Planning State Layer                                        │
 │  .planning/                                                  │
@@ -46,101 +49,69 @@ Before describing the Code-First additions, the upstream architecture must be un
 │  ├── STATE.md           (current position, decisions)       │
 │  ├── ROADMAP.md         (phase definitions)                 │
 │  ├── REQUIREMENTS.md    (tracked requirements)              │
-│  ├── phase-N-*/         (per-phase artifacts)               │
-│  │   ├── PLAN.md        (execution plan)                    │
-│  │   ├── SUMMARY.md     (completion record)                 │
-│  │   └── CONTEXT.md     (phase context)                     │
-│  └── research/          (research artifacts)                │
+│  ├── prototype/         (code-first artifacts)              │
+│  │   ├── CODE-INVENTORY.md  (extracted @gsd-tags)           │
+│  │   └── PROTOTYPE-LOG.md   (build log)                     │
+│  └── phases/phase-N-*/  (per-phase artifacts)               │
+│      ├── PLAN.md                                            │
+│      ├── SUMMARY.md                                         │
+│      └── CONTEXT.md                                         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Key Architectural Properties of the Existing System
+### Key Architectural Properties (stable, do not break)
 
-**Command descriptor pattern.** Every slash-command (`/gsd:execute-phase`) is a Markdown file with YAML frontmatter (`name`, `description`, `allowed-tools`). The command file contains no logic — it injects workflow files via `@`-references and passes `$ARGUMENTS` through. Logic lives entirely in the workflow layer.
+**Command descriptor pattern.** Every slash-command is a `.md` file with YAML frontmatter. No logic in command files — logic lives in workflow files or gsd-tools.cjs.
 
-**Orchestrator-subagent pattern.** Workflow files are lean orchestrators. They call `gsd-tools.cjs init <workflow>` to load all context as JSON, then spawn typed subagents (`gsd-executor`, `gsd-planner`, etc.) via the `Task()` API. Each subagent runs independently with a fresh context window. The orchestrator collects results and advances state.
+**Orchestrator-subagent pattern.** Workflow files call `gsd-tools.cjs init <workflow>` to load context as JSON, then spawn typed subagents via `Task()`. Each subagent has a fresh context window.
 
-**Parallel wave execution.** Plans within a phase are grouped into dependency waves. Each wave's plans execute in parallel (one subagent per plan). This is the primary performance mechanism.
+**gsd-tools.cjs as state gateway.** All reads/writes to `.planning/` go through `gsd-tools.cjs`. Agents never directly manipulate planning files.
 
-**Typed agents with model profiles.** Each agent type has a model assignment per profile tier (quality/balanced/budget). `gsd-tools.cjs resolve-model <agent-type>` resolves the correct model at runtime. Model selection is config-driven, not hardcoded.
+**Wrapper pattern for upstream compatibility.** New agents wrap upstream behavior (gsd-arc-executor wraps gsd-executor) rather than modifying upstream files. Upstream files are never touched.
 
-**gsd-tools.cjs as the single state interface.** All reads and writes to `.planning/` go through `gsd-tools.cjs`. Workflows and agents never directly manipulate planning files — they call the CLI tool. This is the system's state boundary.
-
-**Additive installer.** `bin/install.js` copies commands, agents, and tool binaries into the user's Claude config directory at `~/.claude/`. New features extend this installer with new files; nothing is modified in place.
+**Additive installer.** `bin/install.js` copies new files into `~/.claude/`. New features add files; nothing is modified in place.
 
 ---
 
-## Code-First Extension Architecture
+## v1.1 Extension Architecture: PRD-to-Prototype Pipeline, Test-Agent, Review-Agent, ARC-as-Default
 
-The ARC (Annotated Reasoning in Code) system adds four new component types to the existing architecture. All are strictly additive.
+The four new features require three new agents, one new command, modifications to two existing commands, and one config change. All are additive.
 
-### New Component Map
+### New Component Map (v1.1 additions only)
 
 ```
-User Code (any language)
-      │  contains
-      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  ARC Annotation Layer (NEW)                                  │
-│  Structured @gsd-tags embedded in code comments             │
-│  - @gsd-context   (what this code does / why)               │
-│  - @gsd-decision  (architectural choice recorded)           │
-│  - @gsd-todo      (work remaining)                          │
-│  - @gsd-constraint (limits/requirements imposed)            │
-│  - @gsd-pattern   (reusable pattern identified)             │
-│  - @gsd-ref       (cross-reference to other code/docs)      │
-│  - @gsd-risk      (technical/product risk flagged)          │
-│  - @gsd-api       (public interface specification)          │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ read by
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Tag Scanner (NEW — extends gsd-tools.cjs)                  │
-│  Regex-based extraction of @gsd-tags from any text file     │
-│  - Input: file path(s) or directory                         │
-│  - Output: structured JSON (tag type, value, file, line)    │
-│  - Language-agnostic (works on JS, TS, Python, etc.)        │
-│  - New gsd-tools.cjs commands:                              │
-│      scan-tags <path>     → JSON array of extracted tags    │
-│      extract-plan <path>  → generate CODE-INVENTORY.md      │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ produces
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│  CODE-INVENTORY.md (NEW planning artifact)                  │
-│  Lives in .planning/ (alongside STATE.md, ROADMAP.md)       │
-│  - Grouped by tag type                                      │
-│  - Linked to source file and line                           │
-│  - Input consumed by code-planner agent                     │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ consumed by
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│  New Agent Layer (NEW — extends agents/*.md)                │
+│  v1.1 Entry Points (NEW commands)                           │
 │                                                              │
-│  gsd-prototyper    — builds prototypes with ARC annotations │
-│  gsd-code-planner  — reads code + tags → planning artifacts │
-│  gsd-annotator     — retroactively annotates existing code  │
-│                                                              │
-│  Modified agents:                                            │
-│  gsd-executor      — now required to add ARC comments       │
-│  gsd-planner       — now reads CODE-INVENTORY.md as input   │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ spawned by
-                           ▼
+│  /gsd:prototype  (MODIFIED — gains PRD ingestion step)      │
+│  /gsd:review     (MODIFIED — gains test+eval behavior)      │
+└──────────────┬──────────────────────────┬───────────────────┘
+               │                          │
+               ▼                          ▼
+┌──────────────────────────┐  ┌──────────────────────────────┐
+│  PRD-to-Prototype Path   │  │  Review Path                 │
+│                          │  │                              │
+│  1. Read PRD input       │  │  1. Run tests (gsd-tester)   │
+│  2. Spawn gsd-prototyper │  │  2. Evaluate results         │
+│     (ARC annotations     │  │  3. Spawn gsd-reviewer       │
+│      from PRD context)   │  │  4. Produce REVIEW.md        │
+│  3. Auto extract-plan    │  │  5. Surface next steps       │
+└──────────────────────────┘  └──────────────────────────────┘
+               │                          │
+               ▼                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  New Command Layer (NEW — extends commands/gsd/*.md)        │
+│  New Agent Layer (v1.1)                                      │
 │                                                              │
-│  /gsd:prototype    → spawns gsd-prototyper                  │
-│  /gsd:annotate     → spawns gsd-annotator + extract-plan    │
-│  /gsd:extract-plan → calls gsd-tools scan-tags → inventory  │
-│  /gsd:iterate      → extract-tags → code-planner → approve  │
-│                       → executor pipeline                    │
-│  /gsd:deep-plan    → wraps discuss-phase + plan-phase        │
-│  /gsd:set-mode     → writes phase_modes config              │
-│                                                              │
-│  Modified commands:                                          │
-│  (none — upstream commands unchanged)                        │
+│  gsd-tester   — writes unit/integration tests for a phase   │
+│  gsd-reviewer — evaluates test results + manual checks,     │
+│                 produces REVIEW.md with next-steps           │
+└─────────────────────────────────────────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Config Change (v1.1)                                        │
+│  arc.enabled defaults to true (was opt-in)                  │
+│  Affects: gsd-arc-executor and gsd-arc-planner routing      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -148,242 +119,304 @@ User Code (any language)
 
 ## Component Boundaries
 
+### New vs Modified: Explicit Inventory
+
+| Component | New or Modified | File Path | What Changes |
+|-----------|----------------|-----------|--------------|
+| `gsd-tester` agent | NEW | `agents/gsd-tester.md` | New agent for test generation |
+| `gsd-reviewer` agent | NEW | `agents/gsd-reviewer.md` | New agent for review + evaluation |
+| `/gsd:review` command | MODIFIED | `commands/gsd/review.md` | Current: cross-AI plan review. v1.1: test execution + evaluation + review output |
+| `/gsd:prototype` command | MODIFIED | `commands/gsd/prototype.md` | Gains PRD ingestion step before spawning gsd-prototyper |
+| `arc.enabled` config default | MODIFIED | `lib/config.cjs` (schema default) | Change default from `false` to `true` |
+| `bin/install.js` | MODIFIED | `bin/install.js` | Register two new agent files for copy |
+| `gsd-arc-executor` agent | UNCHANGED | `agents/gsd-arc-executor.md` | Already handles ARC obligations; no change needed |
+| `gsd-arc-planner` agent | UNCHANGED | `agents/gsd-arc-planner.md` | Already reads CODE-INVENTORY.md; no change needed |
+| `gsd-prototyper` agent | UNCHANGED | `agents/gsd-prototyper.md` | PRD ingestion is in the command orchestrator, not the agent |
+| All upstream GSD commands | UNCHANGED | `get-shit-done/commands/` | Non-negotiable constraint |
+
+### Component Responsibilities
+
 | Component | Responsibility | Reads From | Writes To |
 |-----------|---------------|------------|-----------|
-| ARC annotations (in user code) | Embed structured planning metadata | — | User source files |
-| Tag scanner (gsd-tools.cjs extension) | Regex-extract @gsd-tags, output JSON | User source files | stdout (JSON) |
-| `extract-plan` command | Orchestrate scan → inventory generation | Tag scanner output | `.planning/CODE-INVENTORY.md` |
-| `CODE-INVENTORY.md` | Structured registry of all tags in codebase | — | Consumed by code-planner agent |
-| `gsd-prototyper` agent | Build prototype code with ARC annotations | Project context, ROADMAP.md | User source files with @gsd-tags |
-| `gsd-code-planner` agent | Generate planning artifacts from code | CODE-INVENTORY.md, source files | PLAN.md, SUMMARY.md, ROADMAP.md updates |
-| `gsd-annotator` agent | Add ARC annotations to existing code | User source files | User source files with @gsd-tags added |
-| Modified `gsd-executor` | Execute plans + add ARC comments during execution | PLAN.md | User source files (with @gsd-tags), SUMMARY.md |
-| `config.json` extension | Store `phase_modes`, `arc` settings, `default_phase_mode` | — | `.planning/config.json` |
-| `bin/install.js` extension | Install new agents and commands | Package files | `~/.claude/` |
+| `/gsd:prototype` (v1.1) | Ingest PRD/context, pass to gsd-prototyper, auto-run extract-plan | `$ARGUMENTS`, PRD file, PROJECT.md, REQUIREMENTS.md, ROADMAP.md | delegates to gsd-prototyper |
+| `gsd-tester` agent | Write unit and integration tests for prototype code; follow RED-GREEN conventions | Prototype source files, CODE-INVENTORY.md, PROTOTYPE-LOG.md | Test files in project; test commit |
+| `gsd-reviewer` agent | Execute tests, evaluate pass/fail, run manual checks, produce evaluation | Test results (stdout), prototype source files, PROTOTYPE-LOG.md | `.planning/prototype/REVIEW.md` |
+| `/gsd:review` (v1.1) | Orchestrate: spawn gsd-tester → run tests → spawn gsd-reviewer → present next steps | Prototype artifacts | delegates to agents |
+| `arc.enabled` default=true | ARC mode is on by default; no config required to get ARC behavior | `.planning/config.json` | Routing in gsd-arc-executor / gsd-arc-planner |
 
 ---
 
 ## Data Flow
 
-### Code-First Path (new workflow)
+### PRD-to-Prototype Pipeline (new)
 
 ```
-Developer writes prototype code
+User provides PRD (file path or inline text in $ARGUMENTS)
         │
         ▼
-Code contains @gsd-tags in comments
+/gsd:prototype --prd <path>
+  → Read PRD file, extract: goals, requirements, constraints, tech choices
+  → Merge PRD context into prototype invocation prompt
+  → Spawn gsd-prototyper with PRD-enriched context
         │
         ▼
-/gsd:extract-plan
-  → gsd-tools scan-tags ./src   [regex scan, outputs JSON]
-  → gsd-tools extract-plan      [JSON → CODE-INVENTORY.md]
+gsd-prototyper builds annotated scaffold
+  → Reads PROJECT.md, REQUIREMENTS.md, ROADMAP.md
+  → PRD context added as additional input (phase scope, architectural decisions)
+  → Writes prototype files with @gsd-tags embedded
+  → Writes .planning/prototype/PROTOTYPE-LOG.md
         │
         ▼
-.planning/CODE-INVENTORY.md exists
+/gsd:prototype auto-runs extract-plan
+  → gsd-tools extract-tags --format md --output .planning/prototype/CODE-INVENTORY.md
         │
         ▼
-/gsd:iterate
-  Phase 1: gsd-code-planner reads CODE-INVENTORY.md + source
-           → generates PLAN.md for each identified work unit
-  Phase 2: User reviews and approves plans (approval gate)
-  Phase 3: gsd-executor executes approved plans
-           → executor adds new @gsd-tags as it works
-           → cycle repeats
+.planning/prototype/CODE-INVENTORY.md ready for /gsd:iterate
 ```
 
-### Prototype Path (new workflow)
+### Test-Agent Data Flow (new)
 
 ```
-/gsd:prototype "build auth system"
-  → gsd-prototyper reads project context
-  → writes prototype code with @gsd-tags embedded
-  → auto-runs /gsd:extract-plan
-  → produces CODE-INVENTORY.md
-```
-
-### Retroactive Annotation Path (new workflow)
-
-```
-Existing codebase (no @gsd-tags)
+/gsd:review
         │
         ▼
-/gsd:annotate
-  → gsd-annotator reads source files
-  → adds @gsd-tags inline as comments
-  → runs gsd-tools extract-plan
-  → produces CODE-INVENTORY.md
+Step 1: Spawn gsd-tester
+  → Reads prototype source files (from PROTOTYPE-LOG.md file list)
+  → Reads CODE-INVENTORY.md for @gsd-api and @gsd-constraint context
+  → Writes test files (unit/integration) adjacent to prototype files
+  → Commits: test(prototype): add tests from gsd-tester
+        │
+        ▼
+Step 2: Run tests
+  → /gsd:review orchestrator runs test command (detected from project type)
+  → Captures stdout/stderr, exit code, pass/fail counts
+        │
+        ▼
+Step 3: Spawn gsd-reviewer
+  → Receives: test results, prototype source, CODE-INVENTORY.md, PROTOTYPE-LOG.md
+  → Evaluates: test coverage vs @gsd-api contracts, gaps vs @gsd-todo list
+  → Runs manual verification checks (file existence, import resolution, structure)
+  → Writes .planning/prototype/REVIEW.md
+        │
+        ▼
+Step 4: Present next steps to user
 ```
 
-### Plan-First Path (unchanged upstream path)
+### ARC-as-Default Flow Change (config change only)
 
 ```
-/gsd:discuss-phase → /gsd:plan-phase → /gsd:execute-phase
+Before v1.1:
+  arc.enabled not set → defaults to false → gsd-executor spawned
+
+After v1.1:
+  arc.enabled not set → defaults to true → gsd-arc-executor spawned
+  arc.enabled: false → explicit opt-out → gsd-executor spawned
+
+No change to routing logic in iterate.md or execute-phase workflow.
+Change is purely in lib/config.cjs default value and schema documentation.
 ```
 
-Both paths produce the same downstream artifacts (PLAN.md, SUMMARY.md, STATE.md updates). The code-first path just replaces the discuss/plan steps with annotation extraction.
+### Review Artifact Flow
+
+```
+.planning/prototype/REVIEW.md structure:
+  ├── Test Results section (pass/fail counts, failing test names)
+  ├── Coverage Analysis (which @gsd-api contracts have test coverage)
+  ├── Gap Analysis (@gsd-todo items without tests, unverified @gsd-risk items)
+  ├── Manual Verification (file structure, imports resolve, stubs flagged)
+  └── Next Steps (prioritized: fix failing tests / fill coverage gaps / run /gsd:iterate)
+```
 
 ---
 
 ## Suggested Build Order
 
-Dependencies flow upward: later components depend on earlier ones. Build bottom-up.
+Dependencies flow upward. Build bottom-up to avoid blocked work.
 
-### Layer 1: Foundation (no dependencies on new code)
+### Layer 1: Config Change (no dependencies on new code)
 
-**1a. ARC annotation standard**
-Define the @gsd-tag vocabulary and syntax rules in documentation. This is specification work, no code. All other components depend on this being stable.
+**1a. `arc.enabled` default to `true` in `lib/config.cjs`**
+Single-field default change. Zero risk. No new files. Enables ARC behavior for all new users without requiring a `set-mode` call. Existing projects with explicit `arc.enabled: false` are unaffected — the config override persists. Build first so all downstream testing reflects the intended default.
 
-**1b. Config schema extension**
-Add `phase_modes`, `arc`, and `default_phase_mode` keys to the config schema in `lib/config.cjs`. These unlock mode-switching for later commands. Low risk, touches existing code minimally.
+### Layer 2: PRD-to-Prototype Pipeline (depends on Layer 1)
 
-**1c. Tag scanner in gsd-tools.cjs**
-Add `scan-tags` and `extract-plan` commands to `gsd-tools.cjs`. Regex extraction, no external dependencies. Produces JSON output — testable in isolation before any agent uses it.
+**2a. Modify `/gsd:prototype` command to accept `--prd <path>` flag**
+Add a PRD ingestion step before spawning gsd-prototyper. The command reads the PRD file and injects its content as additional context in the Task() call to gsd-prototyper. The gsd-prototyper agent itself does not change — the enrichment happens in the command orchestrator. This is the minimal viable PRD pipeline.
 
-### Layer 2: Planning Artifact (depends on Layer 1)
+Key addition to `commands/gsd/prototype.md`:
+- Parse `--prd <path>` from `$ARGUMENTS`
+- If present: read PRD file, extract goals/requirements/constraints, inject into prototyper Task() prompt
+- If absent: existing behavior unchanged (backward compatible)
 
-**2a. CODE-INVENTORY.md format**
-Finalize the schema of `CODE-INVENTORY.md` (sections, link format, tag grouping). This is consumed by the planner agent — if the schema changes later, the agent prompt changes too. Lock it early.
+### Layer 3: gsd-tester Agent (no dependencies on Layers 1-2)
 
-**2b. extract-plan command**
-Thin command file that calls `gsd-tools extract-plan`. Depends on tag scanner (1c) and inventory format (2a). Very little logic.
+**3a. Create `agents/gsd-tester.md`**
+New agent that writes unit and integration tests for prototype code. Follows the same agent file format as all 22 existing agents (YAML frontmatter + Markdown prose).
 
-### Layer 3: Agents (depends on Layers 1-2)
+Input sources:
+- Prototype source files (paths from PROTOTYPE-LOG.md)
+- CODE-INVENTORY.md (for @gsd-api contracts as test specifications)
+- @gsd-constraint tags (test boundary conditions)
+- PROTOTYPE-LOG.md (list of files built, requirement IDs covered)
 
-**3a. gsd-annotator**
-Reads source files, writes @gsd-tags. No dependency on CODE-INVENTORY.md — it produces input for the scanner. Can be built independently of gsd-code-planner.
+Behavior pattern: mirrors `gsd-arc-executor`'s TDD execution section — detect test framework, write failing tests, verify RED state, implement minimal pass, verify GREEN. Since prototype code has stub implementations, tests are written against the @gsd-api contracts (not against stub return values).
 
-**3b. gsd-prototyper**
-Writes prototype code with ARC annotations baked in. Depends on ARC standard (1a) and being able to call extract-plan afterward.
+Output: test files committed as `test(prototype): add tests from gsd-tester`
 
-**3c. gsd-code-planner**
-Reads CODE-INVENTORY.md and source files, produces PLAN.md. This is the most complex new agent — depends on inventory format (2a) being stable.
+NOTE: This is a new agent type, not a wrapper around an existing agent. It does NOT subclass gsd-verifier (verifier checks phase goals) or the upstream add-tests workflow (that targets completed phase implementations). gsd-tester targets prototype code using ARC annotations as specifications.
 
-**3d. Modified gsd-executor**
-Add ARC comment obligation to existing executor prompt. Minimal change — existing behavior preserved, new requirement added.
+### Layer 4: gsd-reviewer Agent (depends on Layer 3)
 
-**3e. Modified gsd-planner**
-Add code-based planning mode that reads CODE-INVENTORY.md as input. Feature-flagged by `phase_modes` config.
+**4a. Create `agents/gsd-reviewer.md`**
+New agent that evaluates test results and prototype quality, then produces REVIEW.md. Depends on gsd-tester having already run (tests must exist and have been executed before reviewer spawns).
 
-### Layer 4: Command Orchestration (depends on Layer 3)
+Input sources:
+- Test execution results (pass/fail counts, failing test names — provided in Task() prompt by the review command orchestrator)
+- Prototype source files
+- CODE-INVENTORY.md (for gap analysis against @gsd-todo and @gsd-api)
+- PROTOTYPE-LOG.md (for decisions made during prototyping)
 
-**4a. annotate command**
-Spawns gsd-annotator (3a), then runs extract-plan. Depends on both.
+Output: `.planning/prototype/REVIEW.md` with structured sections (test results, coverage, gaps, manual checks, next steps).
 
-**4b. prototype command**
-Spawns gsd-prototyper (3b). Straightforward.
+NOTE: gsd-reviewer is NOT a replacement for gsd-verifier. gsd-verifier performs goal-backward phase verification after execution. gsd-reviewer evaluates prototype quality before iteration. The two agents serve different lifecycle positions and should remain separate.
 
-**4c. iterate command**
-Orchestrates: extract-tags → gsd-code-planner → approval gate → gsd-executor. Depends on all agents in Layer 3. Most complex command — build last.
+### Layer 5: Modified `/gsd:review` Command (depends on Layers 3-4)
 
-**4d. deep-plan command**
-Wraps existing discuss-phase + plan-phase. Low complexity — primarily composition.
+**5a. Modify `commands/gsd/review.md`**
+The existing `/gsd:review` command performs cross-AI plan review (invokes Gemini, Claude, Codex CLIs). v1.1 needs a fundamentally different behavior: test execution + evaluation + structured review output.
 
-**4e. set-mode command**
-Writes to config.json `phase_modes`. Depends on config schema extension (1b).
+Decision: The v1.1 review behavior is different enough from the existing cross-AI review behavior that the command needs restructuring. Two options:
 
-### Layer 5: Installer and Distribution (depends on all above)
+- **Option A (recommended):** Make `/gsd:review` context-aware. If called with `--phase N`, it does the existing cross-AI plan review. If called without a phase (or with `--prototype`), it does the v1.1 prototype review pipeline. This preserves the existing behavior as a code path rather than replacing it.
 
-**5a. Updated bin/install.js**
-Extend installer to copy new agents and commands. Touch only after all agent and command files are finalized.
+- **Option B:** Create a new `/gsd:review-prototype` command and leave `/gsd:review` unchanged. Cleaner separation but adds a command users must discover.
 
-**5b. package.json and README**
-Update name, docs. Final step.
+Recommendation: Option A. The existing cross-AI review behavior is valuable and used. A context-aware command with backward-compatible defaults is consistent with the wrapper pattern used throughout this codebase.
+
+The orchestration in the modified command:
+1. If prototype mode: spawn gsd-tester → run tests → capture output → spawn gsd-reviewer with results → read REVIEW.md → present summary + next steps
+2. If plan review mode: existing cross-AI review behavior unchanged
+
+### Layer 6: Installer (depends on all above)
+
+**6a. Modify `bin/install.js`**
+Register `agents/gsd-tester.md` and `agents/gsd-reviewer.md` for copy into `~/.claude/agents/`. Follow the existing pattern — no logic changes needed, just two additional file registrations.
 
 ---
 
 ## Build Order Summary Table
 
-| Layer | Component | Depends On | Risk |
-|-------|-----------|-----------|------|
-| 1a | ARC annotation standard | — | Low |
-| 1b | Config schema extension | — | Low |
-| 1c | Tag scanner (gsd-tools.cjs) | 1a | Medium |
-| 2a | CODE-INVENTORY.md format | 1a, 1c | Low |
-| 2b | extract-plan command | 1c, 2a | Low |
-| 3a | gsd-annotator agent | 1a | Medium |
-| 3b | gsd-prototyper agent | 1a, 2b | Medium |
-| 3c | gsd-code-planner agent | 2a | High |
-| 3d | Modified gsd-executor | 1a | Low |
-| 3e | Modified gsd-planner | 1b, 2a | Medium |
-| 4a | annotate command | 3a, 2b | Low |
-| 4b | prototype command | 3b | Low |
-| 4c | iterate command | 3c, 3d, 3e | High |
-| 4d | deep-plan command | existing commands | Low |
-| 4e | set-mode command | 1b | Low |
-| 5a | Updated installer | all above | Low |
-| 5b | package.json + README | all above | Low |
+| Layer | Component | Type | Depends On | Risk |
+|-------|-----------|------|-----------|------|
+| 1a | arc.enabled default=true | Config change | — | Low |
+| 2a | /gsd:prototype --prd flag | Command modify | — | Low |
+| 3a | gsd-tester agent | New agent | — | Medium |
+| 4a | gsd-reviewer agent | New agent | 3a (conceptually) | Medium |
+| 5a | /gsd:review command overhaul | Command modify | 3a, 4a | Medium |
+| 6a | bin/install.js additions | Installer modify | 3a, 4a | Low |
+
+Layers 2a and 3a have no inter-dependencies and can be built in parallel. Layer 4a can begin immediately after 3a's agent file shape is settled (the reviewer references the tester's output format). Layer 5a is the integration point — build last among code changes.
 
 ---
 
 ## Patterns to Follow
 
-### Pattern: Command as thin descriptor
-Commands contain no logic. The command file injects a workflow file via `@`-reference and passes arguments. All logic lives in the workflow or gsd-tools.cjs. New commands (prototype, annotate, iterate, extract-plan, deep-plan, set-mode) must follow this pattern.
+### Pattern: Command as thin descriptor (unchanged)
+Commands contain no logic. New `/gsd:review` orchestration goes in a workflow file (`get-shit-done/workflows/review-prototype.md` or as a new section within the command using inline steps). The command file references the workflow via `@`-reference.
 
-### Pattern: gsd-tools.cjs as state gateway
-Nothing reads or writes `.planning/` directly. All state access is through gsd-tools.cjs subcommands. The tag scanner and inventory generator must write through gsd-tools.cjs, not via direct `fs.writeFileSync` calls in agent prompts.
+Exception: `/gsd:iterate` and `/gsd:prototype` embed their orchestration directly in the command file (no separate workflow file). The v1.1 changes to these commands should follow the same inline-steps pattern already established, not introduce a new workflow file indirection.
 
-### Pattern: Additive-only agent modifications
-The `gsd-executor` and `gsd-planner` modifications must add behavior without removing existing behavior. Use feature flags (`phase_modes` config) to gate new behavior. A phase in "plan-first" mode must produce identical results to the upstream executor.
+### Pattern: gsd-tools.cjs as state gateway (unchanged)
+All writes to `.planning/prototype/REVIEW.md` should go through a gsd-tools command. If no suitable command exists, add `write-review` or `scaffold review` subcommands to gsd-tools.cjs rather than having agents write files directly. (Note: PROTOTYPE-LOG.md is currently written directly by gsd-prototyper via the Write tool — this is an existing exception to the gateway pattern that the tester/reviewer agents should follow for their own output files.)
 
-### Pattern: init command for compound context
-Complex orchestration workflows use `gsd-tools init <workflow>` to load all context as a single JSON blob before spawning agents. The `iterate` command should follow this pattern — create an `init iterate` compound command in `lib/init.cjs` that bundles CODE-INVENTORY.md content, config, and phase state.
+### Pattern: Wrapper agents for upstream compatibility (unchanged)
+gsd-tester and gsd-reviewer are new agent types, not wrappers. They do not modify gsd-executor or gsd-verifier. If behavior from gsd-verifier is needed in gsd-reviewer, copy the relevant sections rather than calling or wrapping gsd-verifier.
 
-### Pattern: Typed subagents with exact names
-When spawning subagents, use the exact agent type name (`gsd-prototyper`, `gsd-code-planner`, `gsd-annotator`). These names must match the agent file names in `agents/` exactly. Never fall back to `general-purpose`.
+### Pattern: Config-gated behavior (unchanged)
+ARC default change: the `arc.enabled` config still exists and can be explicitly set to `false` to opt out. The change is only to the default value in the schema. Existing projects with explicit config are unaffected.
+
+### Pattern: Agent frontmatter (unchanged)
+New agents use identical YAML frontmatter format: `name`, `description`, `tools`, `permissionMode`, `color`. Permitted tools for gsd-tester: `Read, Write, Edit, Bash, Grep, Glob`. Permitted tools for gsd-reviewer: `Read, Write, Bash, Grep, Glob`.
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern: Embedding logic in command files
-Command files that contain conditional logic, loops, or state reads directly are hard to test and diverge from the existing architecture. All logic belongs in workflows or gsd-tools.cjs.
+### Anti-Pattern: Replacing /gsd:review entirely
+The existing cross-AI plan review behavior has active use. Replacing the command wholesale breaks users who depend on `--phase N` review behavior.
 
-**Instead:** Keep command files as descriptor + workflow reference. Put logic in workflow files.
+**Instead:** Make the command context-aware. Prototype review is the default (no-arg) behavior; plan review is preserved with `--phase N`.
 
-### Anti-Pattern: Direct .planning/ file manipulation in agent prompts
-Agents that call `echo "..." > .planning/CODE-INVENTORY.md` directly bypass the state gateway. This breaks consistency guarantees and makes testing harder.
+### Anti-Pattern: gsd-tester writing tests against stub implementations
+Prototype code has stub implementations (hardcoded returns, NotImplementedError). Writing tests that assert stub return values creates tests that pass immediately and become valueless after real implementation.
 
-**Instead:** Route all writes through `gsd-tools.cjs` commands. Add a `write-inventory` subcommand if needed.
+**Instead:** gsd-tester reads @gsd-api tags as specifications and writes tests against the contract, not against stub behavior. Tests should fail on the stub (RED) and pass only when the real implementation satisfies the contract.
 
-### Anti-Pattern: AST-based tag extraction
-Full AST parsing is language-specific, adds dependencies, and is brittle across language versions. The ARC tag format is designed to work with regex.
+### Anti-Pattern: gsd-reviewer as a gsd-verifier wrapper
+gsd-verifier runs after phase execution and checks goal achievement. gsd-reviewer runs after prototype building and evaluates prototype quality before execution. They serve different phases of the workflow.
 
-**Instead:** Use regex patterns anchored to `@gsd-<tagname>` with simple key-value or freeform value extraction. Language-agnostic, zero dependencies.
+**Instead:** Keep them as independent agents. gsd-reviewer can borrow evaluation patterns from gsd-verifier's "goal-backward analysis" approach, but should not call or extend gsd-verifier.
 
-### Anti-Pattern: Tight coupling between code-first and plan-first paths
-If the `iterate` command assumes CODE-INVENTORY.md always exists, it will fail for phases that started on the plan-first path. The two paths should produce compatible intermediate artifacts.
+### Anti-Pattern: PRD ingestion in gsd-prototyper agent
+Putting PRD reading logic inside gsd-prototyper couples the agent to a specific input format and makes it harder to invoke the agent directly without a PRD.
 
-**Instead:** The `gsd-code-planner` agent should gracefully handle missing CODE-INVENTORY.md by triggering `extract-plan` first, or by reading source files directly.
+**Instead:** PRD ingestion belongs in the `/gsd:prototype` command orchestrator. The command reads the PRD and enriches the Task() prompt sent to gsd-prototyper. The agent only sees "additional context" — it doesn't need to know it came from a PRD vs inline arguments.
 
-### Anti-Pattern: Modifying upstream command files
-The upstream commands (`discuss-phase`, `plan-phase`, `execute-phase`, etc.) must not be changed. Any modification risks merge conflicts with upstream GSD updates and breaks the compatibility guarantee.
+### Anti-Pattern: Test execution inside gsd-tester
+Agents should not block on long-running test suite executions. Running tests inside the tester agent means the agent context window stays open during test execution.
 
-**Instead:** New functionality goes in new files. Where behavior must change (executor ARC obligation), make changes purely additive or use config flags to gate them.
+**Instead:** gsd-tester writes the tests and commits them. The `/gsd:review` command orchestrator runs the test command via Bash, captures the output, and passes the results to gsd-reviewer as input. Test execution belongs in the command layer, not inside an agent.
+
+---
+
+## Integration Points
+
+### Internal Boundaries
+
+| Boundary | Communication Pattern | Notes |
+|----------|-----------------------|-------|
+| `/gsd:prototype` → `gsd-prototyper` | Task() with enriched prompt (PRD context injected by command) | gsd-prototyper unchanged; all new info arrives as additional prompt context |
+| `/gsd:review` → `gsd-tester` | Task() with prototype file list and CODE-INVENTORY.md path | Tester writes tests independently; command waits for completion |
+| `/gsd:review` → test runner | Bash command (detected from project type: `npm test`, `node --test`, etc.) | Command captures stdout/stderr and exit code |
+| `/gsd:review` → `gsd-reviewer` | Task() with test results injected as context | Results passed in prompt, not via file — keeps reviewer self-contained |
+| `arc.enabled` default | `lib/config.cjs` schema default → `gsd-tools config-get arc.enabled` → routing in iterate.md | No new integration point; existing routing logic handles `true` value |
+| `gsd-reviewer` → REVIEW.md | Agent writes directly via Write tool (same pattern as gsd-prototyper → PROTOTYPE-LOG.md) | Consistent with existing prototype artifact writing pattern |
+
+### External Services
+
+None. v1.1 adds no external service integrations. The existing `/gsd:review` cross-AI CLI invocation pattern (Gemini, Claude, Codex CLIs) is preserved as a code path but not modified.
 
 ---
 
 ## Scalability Considerations
 
-This is a local CLI tool. "Scale" here means handling large codebases and long iteration cycles, not distributed throughput.
+This is a local CLI tool. "Scale" means large codebases and long test suites, not distributed throughput.
 
-| Concern | Small codebase (<5K LOC) | Medium (5K-50K LOC) | Large (>50K LOC) |
-|---------|--------------------------|---------------------|-----------------|
-| Tag scanning performance | Instant (regex) | Fast (<1s) | Needs directory filtering; scan only changed files |
-| CODE-INVENTORY.md size | Small, fits in context window | Medium, fits in context | May need pagination; agent reads sections not full file |
-| Agent context budget | All tags fit | Most tags fit | Tag scanner must support filtering by type or directory |
-| iterate pipeline cost | Low | Moderate | High; use `--wave N` style phasing and incremental scans |
+| Concern | Small prototype (<10 files) | Medium (10-50 files) | Large (50+ files) |
+|---------|---------------------------|----------------------|-------------------|
+| Test generation scope | All files in one gsd-tester pass | All files, one agent pass | Filter by PROTOTYPE-LOG.md file list; don't scan whole repo |
+| Test execution time | Fast, inline | Moderate | Long-running; consider `--timeout` flag |
+| gsd-reviewer context budget | All test results fit | Most fit | Truncate test output; pass summary counts + failing test names only |
+| REVIEW.md size | Small | Medium | Paginate by section if needed; keep under 10KB |
 
-For v1 with regex-based extraction: scanning is bounded by file I/O speed, not computation. No performance concerns until codebases exceed ~200K LOC.
+For v1.1: gsd-tester scopes to the files listed in PROTOTYPE-LOG.md, not the whole codebase. This bounds test generation cost regardless of codebase size.
 
 ---
 
 ## Sources
 
-- Upstream GSD codebase: `get-shit-done/bin/gsd-tools.cjs`, `get-shit-done/workflows/execute-phase.md`, `agents/*.md` (directly inspected, HIGH confidence)
-- Orchestrator-subagent pattern: `get-shit-done/workflows/execute-phase.md` core_principle and runtime_compatibility sections (HIGH confidence)
-- Model profile routing: `get-shit-done/bin/lib/model-profiles.cjs` (HIGH confidence)
-- State gateway pattern: `lib/core.cjs`, `lib/init.cjs`, `lib/config.cjs` (HIGH confidence)
-- AI agent orchestration patterns: [Azure Architecture Center — AI Agent Design Patterns](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns) (MEDIUM confidence)
-- CLI plugin architecture: [oclif — The Open CLI Framework](https://oclif.io/) (MEDIUM confidence, for pattern comparison only — GSD does not use oclif)
-- Code annotation extraction: [openedx/code-annotations](https://github.com/openedx/code-annotations) (MEDIUM confidence, reference for regex-over-AST rationale)
+- Upstream GSD codebase: `agents/*.md` (23 agents inspected), `commands/gsd/*.md` (63 commands inspected), `get-shit-done/workflows/*.md` (HIGH confidence — directly read)
+- `get-shit-done/bin/gsd-tools.cjs` command registry (lines 1-130 inspected, HIGH confidence)
+- `agents/gsd-arc-executor.md` — ARC mode gating pattern (`arc.enabled` check, config-get call) (HIGH confidence)
+- `agents/gsd-prototyper.md` — PROTOTYPE-LOG.md write pattern, file creation rules (HIGH confidence)
+- `commands/gsd/iterate.md` — executor routing based on arc.enabled (HIGH confidence)
+- `commands/gsd/review.md` + `get-shit-done/workflows/review.md` — existing cross-AI review behavior to preserve (HIGH confidence)
+- `get-shit-done/workflows/add-tests.md` — upstream test generation patterns; gsd-tester follows same RED-GREEN conventions (HIGH confidence)
+- `.planning/PROJECT.md` — v1.1 target features and constraints (HIGH confidence)
+- `.planning/research/FEATURES.md` v1.0 feature dependency graph (HIGH confidence)
+
+---
+
+*Architecture research for: GSD Code-First fork — v1.1 Autonomous Prototype & Review Loop*
+*Researched: 2026-03-29*
+*Supersedes: v1.0 ARCHITECTURE.md (2026-03-28)*
