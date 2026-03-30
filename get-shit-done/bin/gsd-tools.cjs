@@ -921,12 +921,37 @@ async function runCommand(command, args, cwd, raw) {
 
     case 'extract-tags': {
       const allArgs = args.slice(1);
-      const namedFlags = ['phase', 'type', 'format', 'output'];
-      const { phase: phaseFilter, type: typeFilter, format, output: outputFile } = parseNamedArgs(allArgs, namedFlags);
+      const namedFlags = ['phase', 'type', 'format', 'output', 'app'];
+      const { phase: phaseFilter, type: typeFilter, format, output: outputFile, app } = parseNamedArgs(allArgs, namedFlags);
       // Filter out --flag tokens and their values so positional arg detection works
       const consumed = new Set();
       for (const f of namedFlags) { const i = allArgs.indexOf(`--${f}`); if (i !== -1) { consumed.add(i); if (allArgs[i + 1] && !allArgs[i + 1].startsWith('--')) consumed.add(i + 1); } }
       const targetPath = allArgs.filter((_, i) => !consumed.has(i) && !allArgs[i].startsWith('--'))[0] || cwd;
+
+      if (app) {
+        const workspaceDetector = require('./lib/workspace-detector.cjs');
+        const monorepoContext = require('./lib/monorepo-context.cjs');
+        const workspace = workspaceDetector.detectWorkspace(cwd);
+        const validation = workspaceDetector.validateAppPath(workspace, app);
+        if (!validation.valid) { error(validation.error); }
+        const scoped = monorepoContext.scopeExtractTags(cwd, validation.resolved.path, {
+          phaseFilter, typeFilter, format: format || 'json', outputFile,
+        });
+        arcScanner.cmdExtractTags(cwd, scoped.targetPath, { ...scoped });
+
+        if (scoped.outputFile) {
+          try {
+            const featureAggregator = require('./lib/feature-aggregator.cjs');
+            featureAggregator.cmdAggregateFeatures(cwd, {
+              inventoryFile: scoped.outputFile,
+            });
+          } catch (e) {
+            process.stderr.write(`feature-aggregator: auto-chain skipped — ${e.message}\n`);
+          }
+        }
+        break;
+      }
+
       arcScanner.cmdExtractTags(cwd, targetPath, {
         phaseFilter,
         typeFilter,
@@ -981,6 +1006,42 @@ async function runCommand(command, args, cwd, raw) {
         outputFile: named.output,
         inventoryFile: named.inventory,
       });
+      break;
+    }
+
+    case 'detect-workspace': {
+      const workspaceDetector = require('./lib/workspace-detector.cjs');
+      workspaceDetector.cmdDetectWorkspace(cwd, raw);
+      break;
+    }
+
+    case 'generate-manifest': {
+      const manifestGenerator = require('./lib/manifest-generator.cjs');
+      manifestGenerator.cmdGenerateManifest(cwd, args[1], raw);
+      break;
+    }
+
+    case 'generate-manifests': {
+      const workspaceDetector = require('./lib/workspace-detector.cjs');
+      const manifestGenerator = require('./lib/manifest-generator.cjs');
+      const workspace = workspaceDetector.detectWorkspace(cwd);
+      if (!workspace) {
+        process.stderr.write('No workspace detected.\n');
+        process.exitCode = 1;
+        break;
+      }
+      const written = manifestGenerator.generateAllManifests(cwd, workspace.packages, {});
+      for (const f of written) process.stdout.write(f + '\n');
+      break;
+    }
+
+    case 'monorepo-init-app': {
+      const monorepoContext = require('./lib/monorepo-context.cjs');
+      const appPath = args[1];
+      if (!appPath) { process.stderr.write('Usage: monorepo-init-app <app-relative-path>\n'); process.exitCode = 1; break; }
+      const appName = parseNamedArgs(args.slice(2), ['name']).name || path.basename(appPath);
+      const created = monorepoContext.initAppPlanning(cwd, appPath, { appName });
+      process.stdout.write(`Initialized: ${created}\n`);
       break;
     }
 
