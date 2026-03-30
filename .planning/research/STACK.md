@@ -1,176 +1,325 @@
-# Technology Stack
+# Stack Research
 
-**Project:** GSD Code-First Fork — v1.1 Additions
+**Domain:** GSD Code-First Fork — v1.2 Additions (Brainstorm & Feature Map)
 **Researched:** 2026-03-29
-**Scope:** NEW capabilities only — PRD-to-prototype pipeline, test-agent, review-agent, ARC-as-default. Existing v1.0 stack decisions are validated and unchanged.
+**Scope:** NEW capabilities only — brainstorm command, FEATURES.md auto-aggregation, architecture mode for /gsd:prototype. Existing v1.0 and v1.1 stack decisions are validated and unchanged.
 **Confidence:** HIGH
 
 ---
 
-## Ruling Constraint (Unchanged from v1.0)
+## Ruling Constraint (Unchanged)
 
-The existing codebase is pure Node.js CommonJS (`.cjs`) with **zero runtime npm dependencies**. All new v1.1 additions MUST maintain this constraint. This applies to the test-detection logic, PRD parsing, review orchestration, and any new `gsd-tools.cjs` commands.
+The existing codebase is pure Node.js CommonJS (`.cjs`) with **zero runtime npm dependencies**. All v1.2 additions MUST maintain this constraint. This is non-negotiable and has held through v1.0 and v1.1 without any regression.
 
 ---
 
-## v1.0 Stack Assessment
+## v1.1 Stack Baseline (Carry-Forward)
 
-The v1.0 stack decisions are confirmed correct and require no changes for v1.1. The table below captures current verified versions (re-checked 2026-03-29):
+No changes to the inherited stack. The table below is a carry-forward reference only — these decisions are not being revisited.
 
-| Component | v1.0 Decision | v1.1 Status | Current Version |
-|-----------|--------------|-------------|-----------------|
-| Node.js built-ins (CJS layer) | Zero runtime deps | Unchanged | Node.js >=20 (dev machine: v24.14.0) |
-| `node:test` + `node:assert` | CJS test runner | Unchanged | Built-in to Node.js >=20 |
+| Component | Decision | Status | Current Version |
+|-----------|----------|--------|-----------------|
+| Node.js built-ins (CJS layer) | Zero runtime deps | Unchanged | Node.js >=20 |
+| `node:test` + `node:assert` | CJS test runner | Unchanged | Built-in >=20 |
 | `c8` | Coverage for CJS | Unchanged | 11.0.0 |
 | `vitest` | SDK TypeScript tests only | Unchanged | 4.1.2 |
-| `@anthropic-ai/claude-agent-sdk` | Programmatic agent invocation | **Bump to ^0.2.87** | 0.2.87 (verified via npm view) |
+| `@anthropic-ai/claude-agent-sdk` | Programmatic agent invocation | Unchanged | 0.2.87 |
 | `esbuild` | Hooks bundling | Unchanged | 0.24.0 |
 | Claude Code agent frontmatter (YAML) | Agent file format | Unchanged | Current Claude Code format |
+| `arc-scanner.cjs` | Regex tag extraction | Unchanged | Internal module |
 
 ---
 
-## v1.1 New Capabilities — Stack Decisions
+## v1.2 New Capabilities — Stack Decisions
 
-### 1. PRD-to-Prototype Pipeline (`/gsd:prototype` overhaul)
+### 1. `/gsd:brainstorm` Command
 
-**What it does:** Takes a PRD document (Markdown) as input, extracts structured requirements, and feeds them to `gsd-prototyper`. No requirement to run `new-project` first.
+**What it does:** Runs an interactive conversation with the developer to scope a feature, explore constraints, and produces one or more structured PRD files in `.planning/` with acceptance criteria, feature groupings, and dependency analysis.
 
-**Stack decision: No new dependencies. Use agent-driven Markdown parsing.**
+**Stack decision: New command file (`brainstorm.md`) + new agent file (`gsd-brainstormer.md`). Zero new dependencies.**
 
-The PRD is a Markdown file. The agent (`gsd-prototyper` or a new `gsd-prd-parser` step) reads the PRD with the `Read` tool and uses LLM reasoning to extract features, constraints, and acceptance criteria. This is the correct approach because:
+This follows the identical pattern established by `prototype.md` + `gsd-prototyper.md`:
+- The command orchestrates conversation flow (AskUserQuestion loops, approval gates)
+- The agent does the structured output work (PRD generation, AC formatting)
 
-1. PRDs are free-form natural language — regex extraction would be brittle and fail on any non-standard structure
-2. The LLM (Claude Code agent) is already in the loop — parsing is zero-cost and more robust than any heuristic
-3. No parsing library (remark, unified, gray-matter) is needed; the agent produces structured output directly to `.planning/REQUIREMENTS.md`
+**PRD file format — use existing Markdown + frontmatter YAML header:**
 
-**Integration point:** The `prototype.md` command gains a `--prd <path>` flag. When present, it passes the PRD file path in context to `gsd-prototyper`, which reads it before planning. The prototyper's `load_context` step already reads `REQUIREMENTS.md` — adding PRD reading is additive, not a rewrite.
+PRDs produced by brainstorm MUST use this structure so downstream tools (prototype, feature map) can parse them reliably:
 
-**File delivery:** PRD output lands in `.planning/REQUIREMENTS.md` (overwrite or append per `--prd-mode`). No new files needed.
+```markdown
+---
+title: [Feature name]
+version: 1.0
+created: [ISO date]
+phase: [N or null]
+status: draft|approved
+---
 
-### 2. Test-Agent (`gsd-test-writer`)
+# [Feature name]
 
-**What it does:** Reads source files and CODE-INVENTORY.md, detects which test framework the target project uses, then writes tests for each `@gsd-todo` or `@gsd-api` tagged function.
+## Goal
+[One paragraph]
 
-**Stack decision: Test framework detection via `package.json` inspection — zero deps, Node.js `fs.readFileSync` only.**
+## Acceptance Criteria
+AC-1: [imperative statement]
+AC-2: [imperative statement]
 
-Detection algorithm (CJS, zero deps):
+## Feature Groups
+- Group: [name] — [AC-1, AC-2, ...]
+
+## Dependencies
+- Depends on: [AC-X from other-PRD.md or none]
+
+## Out of Scope
+- [explicit exclusion]
+```
+
+Why this format:
+- YAML frontmatter is parseable by the agent via LLM reading + by `gsd-tools.cjs` via simple line-by-line scan (no library needed — `status:` and `phase:` are single-value keys resolvable with `line.split(':')[1].trim()`)
+- `## Acceptance Criteria` as a labeled section header lets the existing AC extraction logic in `prototype.md` (Step 2) work without modification — it already extracts "AC-N: ..." patterns from prose
+- Feature Groups section enables FEATURES.md aggregation (Section 2 below)
+- No new file format introduced — existing `.planning/PRD.md` format extended, not replaced
+
+**Output path:** PRDs land in `.planning/PRD-[slug].md` (or `.planning/PRD.md` for single-feature projects). The brainstorm command uses `generate-slug` (already in `gsd-tools.cjs`) to derive the slug from the feature title.
+
+**Conversation loop:** The command uses `AskUserQuestion` in a multi-turn loop: scope questions → constraint questions → feature grouping → AC drafting → confirmation gate → write PRD. The agent handles all natural language reasoning. The command is the state machine; the agent is the reasoning engine.
+
+**New gsd-tools subcommand needed: `list-prds`**
+
+Returns a JSON array of all `.planning/PRD-*.md` and `.planning/PRD.md` files found in the project:
 
 ```javascript
-// Reads target project's package.json, not this project's package.json
-function detectTestFramework(projectRoot) {
-  const pkgPath = path.join(projectRoot, 'package.json');
-  if (!fs.existsSync(pkgPath)) return 'node:test'; // safe fallback
-  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-  const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
-  const testScript = (pkg.scripts && pkg.scripts.test) || '';
-
-  if (deps.vitest || testScript.includes('vitest')) return 'vitest';
-  if (deps.jest || testScript.includes('jest')) return 'jest';
-  if (deps.mocha || testScript.includes('mocha')) return 'mocha';
-  if (deps.ava || testScript.includes('ava')) return 'ava';
-  if (testScript.includes('--test')) return 'node:test';
-  return 'node:test'; // default
+// In gsd-tools.cjs, new case:
+case 'list-prds': {
+  const planDir = path.join(cwd, '.planning');
+  let files = [];
+  try {
+    files = fs.readdirSync(planDir)
+      .filter(f => f.startsWith('PRD') && f.endsWith('.md'))
+      .map(f => path.join(planDir, f));
+  } catch { /* no .planning dir */ }
+  core.output(files, raw, files.join('\n'));
+  break;
 }
 ```
 
-This covers the 5 frameworks that account for >95% of Node.js projects (vitest, jest, mocha, ava, node:test). Detection is deterministic, fast, and requires no npm install. The agent receives the detected framework name in its context block and uses it to generate framework-appropriate test syntax.
-
-**Agent toolset:** `gsd-test-writer` agent uses `Read`, `Write`, `Grep`, `Glob`, `Bash` (to run detected test command and verify tests pass). Same toolset as `gsd-arc-executor`.
-
-**Why not a CJS scanner for test generation:** Test writing requires LLM reasoning about function behavior, edge cases, and assertion patterns. CJS handles detection only. The writing is agent work.
-
-### 3. Review-Agent (`gsd-reviewer`) and `/gsd:review` Overhaul
-
-**What it does:** Executes the project's test suite, evaluates results, checks ARC tag coverage, and produces a structured `REVIEW.md` with pass/fail status and recommended next steps.
-
-**Stack decision: `child_process.execSync` for test execution — already used in `gsd-tools.cjs`. No new deps.**
-
-The review agent uses `Bash` tool (via Claude Code's tool grant) to run the detected test command. Output is captured and parsed by the agent using LLM reasoning — no output-parsing library needed.
-
-**Review execution pattern:**
-
-```bash
-# Agent runs the detected test command via Bash tool
-npm test 2>&1 | tail -50
-# OR
-npx vitest run --reporter=verbose 2>&1 | tail -100
-# OR
-node --test tests/**/*.test.cjs 2>&1 | tail -100
-```
-
-The agent reads the output, identifies failing tests by pattern (lines containing "FAIL", "not ok", "Error:", "✗"), and writes `REVIEW.md` with:
-- Test pass/fail summary
-- ARC coverage check (verifies `@gsd-todo` items have corresponding tests)
-- Manual verification checklist
-- Recommended next steps (fixes, missing tests, or phase transition readiness)
-
-**`/gsd:review` command:** The existing `review.md` command performs cross-AI peer review of plans. The v1.1 overhaul adds a second review mode triggered by `--code` flag: `gsd:review --code` spawns `gsd-reviewer` for test-execution review, while `gsd:review --phase N` retains the existing plan-review behavior. These are two distinct code paths within the same command file, distinguished by argument flag.
-
-**Why not a separate `/gsd:test-review` command:** Fewer top-level commands means less cognitive overhead. The `--code` flag is self-documenting and the two review modes share the output format (REVIEW.md).
-
-### 4. ARC as Default (`arc.enabled` always `true`)
-
-**Stack decision: Config schema change only — no new technology.**
-
-The `set-mode` command and config layer already support `arc.enabled`. Making ARC the default means changing the config initialization in `init.cjs` to write `"arc": { "enabled": true }` as the default rather than `false`. No new libraries. The `set-mode` command continues to work for opting out.
-
-**Migration:** On first run after upgrade, if an existing config has `arc.enabled: false`, it is left unchanged (user opted out explicitly). If `arc.enabled` is absent, it defaults to `true`. This is implemented in `config.cjs` with a one-line fallback: `config.arc?.enabled ?? true`.
+This is a 10-line addition to the existing `switch` block. No new module file needed.
 
 ---
 
-## New Files Required (v1.1)
+### 2. Feature Map (`FEATURES.md`) Auto-Aggregation
+
+**What it does:** Generates `.planning/FEATURES.md` — a structured overview aggregating features from all PRDs (`.planning/PRD*.md`) and from `@gsd-context`, `@gsd-api`, and `@gsd-todo` tags in code via `CODE-INVENTORY.md`.
+
+**Stack decision: New `generate-feature-map` subcommand in `gsd-tools.cjs`. Zero new dependencies. Pure string processing using existing `arc-scanner.cjs` output.**
+
+**How aggregation works:**
+
+Step 1 — Collect PRD features: For each PRD file, extract feature names from `## Feature Groups` section (line scan, no AST). Each group becomes a FEATURES.md row.
+
+Step 2 — Collect code signals: Read existing `CODE-INVENTORY.md` (already produced by `extract-tags`). Parse the Markdown table rows under `### @gsd-context` and `### @gsd-api` sections for descriptions — these represent implemented/planned features visible in code.
+
+Step 3 — Merge and deduplicate: Simple string deduplication on feature name (case-insensitive prefix match). PRD features take precedence; code signals fill gaps for features without PRD coverage.
+
+Step 4 — Write FEATURES.md.
+
+**Why this is pure string processing (not LLM):**
+- PRD feature groups are already structured (`Group: name — [AC-1, AC-2]`)
+- `CODE-INVENTORY.md` is already a structured Markdown table (produced by `formatAsMarkdown` in `arc-scanner.cjs`)
+- Deduplication on feature names is string comparison, not semantic reasoning
+- An LLM call for aggregation would add latency and non-determinism to what is fundamentally a join operation
+
+**New gsd-tools subcommand: `generate-feature-map`**
+
+```javascript
+case 'generate-feature-map': {
+  const featureMap = require('./lib/feature-map.cjs');
+  featureMap.cmdGenerateFeatureMap(cwd, args.slice(1));
+  break;
+}
+```
+
+**New CJS module: `get-shit-done/bin/lib/feature-map.cjs`**
+
+This module (analogous to `arc-scanner.cjs` and `test-detector.cjs`) handles:
+- `readPrdFeatures(planDir)` — scans PRD files for Feature Groups sections
+- `readCodeFeatures(inventoryPath)` — parses CODE-INVENTORY.md table rows
+- `mergeFeatures(prdFeatures, codeFeatures)` — deduplication logic
+- `formatFeatureMap(features, projectName)` — produces FEATURES.md Markdown
+- `cmdGenerateFeatureMap(cwd, args)` — CLI entry point
+
+Module size estimate: ~150 lines. No external dependencies. Follows the same module shape as `arc-scanner.cjs`.
+
+**FEATURES.md output format:**
+
+```markdown
+# FEATURES.md
+
+**Generated:** [ISO timestamp]
+**Project:** [name]
+**PRD sources:** [count] files
+**Code signals:** [count] tags
+
+## Feature Overview
+
+| Feature | Source | Status | ACs | Phase |
+|---------|--------|--------|-----|-------|
+| [name] | PRD: PRD-auth.md | draft | 3 | 1 |
+| [name] | Code: @gsd-api | implemented | — | — |
+
+## By Phase
+
+### Phase 1
+- [feature] ([AC count] ACs, source: PRD-auth.md)
+
+### Unphased
+- [feature] (code signal, file: src/auth.js:42)
+
+## Coverage Gaps
+
+Features in code without PRD coverage:
+- [feature] — @gsd-context at src/foo.js:12, no PRD entry
+```
+
+**When to regenerate:** The `brainstorm` command auto-chains `generate-feature-map` after writing a new PRD (same pattern as `prototype` auto-chains `extract-tags`). The `extract-plan` command should also auto-chain it so code changes are reflected.
+
+---
+
+### 3. Architecture Mode for `/gsd:prototype`
+
+**What it does:** Adds `--architecture` flag to `/gsd:prototype` that runs a skeleton-first pass — produces directory structure, interface/type definitions, and module boundaries BEFORE any implementation code. Useful for greenfield projects where the architecture needs to be established before prototyping individual features.
+
+**Stack decision: Flag-based extension to existing `prototype.md` command + behavioral instruction addition to `gsd-prototyper.md`. Zero new files, zero new dependencies.**
+
+**How it works — command layer:**
+
+The `prototype.md` command gains a Step 0 flag check for `--architecture`. When present:
+- Sets `architecture_mode = true`
+- Passes `--architecture` flag in the Task() prompt to `gsd-prototyper`
+- After `gsd-prototyper` completes, asks: "Architecture scaffold generated. Run implementation pass? [yes/no]" (unless `--non-interactive`)
+- If yes: re-spawns `gsd-prototyper` WITHOUT `--architecture` (implementation pass uses the scaffold as input)
+
+This two-pass approach is the correct model because:
+- Architecture decisions (module boundaries, interfaces) should be validated before implementation fills them in
+- The approval gate between passes prevents wasting implementation work on bad architecture
+- `gsd-prototyper` already reads existing files before building (Step 1: `load_context`) — implementation pass naturally inherits the architecture scaffold
+
+**How it works — agent layer:**
+
+`gsd-prototyper.md` gains a new conditional section in its `plan_prototype` step:
+
+```
+If $ARGUMENTS contains --architecture:
+  Architecture-mode build rules:
+  - Create directory structure (empty __init__.py, index.ts, mod.rs, etc.)
+  - Define interfaces, types, and abstract base classes — no implementations
+  - Write module-level @gsd-context tags documenting each module's responsibility
+  - Write @gsd-api tags for all public interfaces (no bodies, just signatures)
+  - Write @gsd-decision tags for key architectural choices
+  - DO NOT implement any function bodies
+  - DO NOT write business logic
+  - Output a ARCHITECTURE-NOTES.md file listing: modules created, interface contracts, dependency graph (text form)
+```
+
+**No new gsd-tools subcommand needed.** Architecture mode is entirely flag-driven behavior in the agent and command layers.
+
+**Config key addition:** `arc.architecture_mode` — optional boolean stored in `.gsd-config.json`. Allows projects to set architecture mode as default for all prototype runs. Follows the `config.cjs` VALID_KEYS whitelist pattern — add `'arc.architecture_mode'` to the array.
+
+---
+
+## New Files Required (v1.2)
 
 | File | Type | Purpose |
 |------|------|---------|
-| `agents/gsd-test-writer.md` | Agent (Markdown) | Writes unit/integration tests for annotated code |
-| `agents/gsd-reviewer.md` | Agent (Markdown) | Executes tests, evaluates coverage, produces REVIEW.md |
-| `commands/gsd/review.md` | Command (Markdown) | Updated: adds `--code` flag for code review mode |
-| `commands/gsd/prototype.md` | Command (Markdown) | Updated: adds `--prd <path>` flag for PRD input |
-| `get-shit-done/bin/lib/test-detector.cjs` | CJS module | `detectTestFramework(projectRoot)` function |
+| `commands/gsd/brainstorm.md` | Command (Markdown) | Orchestrates interactive conversation → PRD generation |
+| `agents/gsd-brainstormer.md` | Agent (Markdown) | Handles PRD writing, AC extraction, feature grouping |
+| `get-shit-done/bin/lib/feature-map.cjs` | CJS module | Aggregates PRD features + code signals into FEATURES.md |
+| `commands/gsd/feature-map.md` | Command (Markdown) | Exposes `generate-feature-map` as `/gsd:feature-map` command |
 
-No new directories. All new files fit into existing `agents/` and `commands/gsd/` paths already in the `files` array of `package.json`.
+**Modified files:**
+
+| File | Change |
+|------|--------|
+| `commands/gsd/prototype.md` | Add `--architecture` flag handling (Steps 0 and post-completion) |
+| `agents/gsd-prototyper.md` | Add architecture-mode build rules in `plan_prototype` step |
+| `commands/gsd/extract-plan.md` | Auto-chain `generate-feature-map` after CODE-INVENTORY.md write |
+| `get-shit-done/bin/gsd-tools.cjs` | Add `list-prds` and `generate-feature-map` cases to switch block |
+| `get-shit-done/bin/lib/config.cjs` | Add `'arc.architecture_mode'` to VALID_KEYS array |
+
+No new directories. All new files fit into existing `agents/` and `commands/gsd/` paths already in the `files` array of `package.json`. `feature-map.cjs` goes in `get-shit-done/bin/lib/` which is already included.
 
 ---
 
-## What NOT to Add (v1.1 Specific)
+## What NOT to Add (v1.2 Specific)
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `gray-matter` / `front-matter` npm packages | PRDs are free-form Markdown, not YAML-fronted files. Adding a parser for frontmatter extraction adds a dep for a problem the LLM already solves. | Agent reads PRD directly with `Read` tool |
-| `remark` / `unified` Markdown AST | Same reason as above. PRD parsing is natural language, not structured AST traversal. | LLM reasoning in agent context |
-| `execa` / `cross-spawn` | `child_process.execSync` with `{shell: true}` already works cross-platform in `gsd-tools.cjs` for the commands that need it. No upgrade path. | `child_process` built-in |
-| Dedicated test runner npm packages (jest-cli, @vitest/runner) | The review agent runs the TARGET project's tests, not its own. It uses whatever runner that project already has installed. | `Bash` tool via agent + detected test command |
-| `@octokit/rest` or GitHub API client | Reviews are local-only in v1.1. No GitHub integration. | Out of scope |
-| LangChain / LlamaIndex for PRD extraction | Massive dependency trees. Claude Code agent is already an LLM in the loop. | Agent reads PRD natively |
+| `gray-matter` / `front-matter` npm packages | PRD frontmatter keys (`status`, `phase`, `title`) are single-value strings resolvable with `line.split(':')` in a 10-line CJS function. Adding a YAML parser adds a runtime dep for a trivial parse. | Native string split in `feature-map.cjs` |
+| `remark` / `unified` Markdown AST for PRD parsing | Feature Groups sections are fixed-format (`Group: name — [AC-1, AC-2]`). Line scanning is sufficient and faster. | `String.split('\n')` with prefix matching in `feature-map.cjs` |
+| Separate `gsd-prd-formatter.md` agent | The brainstormer agent can write PRDs directly. A separate formatter agent adds a Task() spawn with no net benefit — one agent produces both the conversation and the output. | Inline PRD writing in `gsd-brainstormer.md` |
+| LLM-driven feature map generation | Aggregation is a join operation (PRD features + code signals), not a reasoning task. Using an agent for this adds non-determinism and latency to what is pure string processing. | `feature-map.cjs` CJS module |
+| New PRD file format (JSON, TOML, etc.) | Markdown with YAML frontmatter is already the format prototype.md expects for AC extraction (Step 2 uses `AC-N:` pattern matching). Changing format would break existing pipeline. | Extend existing `.planning/PRD.md` format |
+| `/gsd:architecture` as a separate top-level command | Architecture mode is a variant of prototype behavior, not a different workflow. A flag keeps the command surface minimal and makes the two-pass flow explicit. | `--architecture` flag on `/gsd:prototype` |
+| Persistent brainstorm session state in `.gsd-config.json` | Brainstorm is a one-shot conversation → PRD write. There is no need to resume a half-completed brainstorm session. The PRD is the durable artifact. | PRD file as the sole output |
+| Remote PRD sources (Notion, Linear API) | Already explicitly out of scope in PROJECT.md. Local files only. | `--prd <path>` flag |
 
 ---
 
-## Integration Points
+## Stack Patterns by Variant
+
+**If project has multiple PRDs (complex multi-feature milestone):**
+- Use `list-prds` to enumerate them
+- Pass all paths to `generate-feature-map` for combined FEATURES.md
+- Run `brainstorm` once per feature area, not once per project
+
+**If project has no PRDs yet (greenfield):**
+- Run `/gsd:brainstorm` first to produce `.planning/PRD.md`
+- Then run `/gsd:prototype --prd .planning/PRD.md --architecture` for skeleton-first build
+- Feature map auto-generates after prototype completes
+
+**If project already has code with @gsd-tags but no PRDs:**
+- Run `/gsd:feature-map` directly — aggregates from code signals only
+- Coverage Gaps section in FEATURES.md shows which features need PRD backing
+- Use gap list to drive retroactive `/gsd:brainstorm` sessions
+
+---
+
+## Integration Points (v1.2)
 
 **`gsd-tools.cjs` additions:**
-- New `extract-tags` subcommand: `--prd <path>` — reads PRD and emits structured JSON (for piping into prototype command)
-- New `detect-test-framework` subcommand: reads target `package.json`, returns framework name string
-- Both are thin wrappers over the new `test-detector.cjs` module; no change to existing subcommands
 
-**Agent context pattern (unchanged from v1.0):**
-- Commands pass context via `$ARGUMENTS` and `@file` includes
-- Agents read context files first, then act
-- Task tool spawning pattern is identical to `gsd-prototyper` / `gsd-arc-executor`
+```
+list-prds                 — returns JSON array of .planning/PRD*.md paths
+generate-feature-map      — reads PRDs + CODE-INVENTORY.md, writes FEATURES.md
+  --output <path>         — override default .planning/FEATURES.md
+  --prd-dir <path>        — override default .planning/ for PRD discovery
+```
 
-**`config.cjs` ARC default change:**
-- One-line addition: `const arcEnabled = config.arc?.enabled ?? true;`
-- Backward compatible — existing `false` values preserved
+**Auto-chain additions:**
+
+| Command | After Which Step | What Chains |
+|---------|-----------------|-------------|
+| `brainstorm.md` | After PRD write | `generate-feature-map` |
+| `extract-plan.md` | After CODE-INVENTORY.md write | `generate-feature-map` (if FEATURES.md exists) |
+| `prototype.md` (architecture mode) | After scaffold pass | User confirmation gate, then implementation pass |
+
+**Config additions:**
+
+| Key | Type | Default | Purpose |
+|-----|------|---------|---------|
+| `arc.architecture_mode` | boolean | false | Make `--architecture` the default for all prototype runs |
+
+Add to `VALID_KEYS` in `config.cjs`: `'arc.architecture_mode'`
 
 ---
 
-## Version Compatibility
+## Version Compatibility (v1.2)
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| `@anthropic-ai/claude-agent-sdk@^0.2.87` | Node.js >=20, TypeScript ^5.7 | Bump from ^0.2.84. SDK `package.json` pins `^0.2.84`; update to `^0.2.87`. Breaking changes: none confirmed in 0.2.x range. |
-| `node:test` (built-in) | Node.js >=20 | Test-writer agent writes tests using whatever the target project has. For this project's own tests, `node:test` continues unchanged. |
-| `vitest@^4.1.2` | Node.js >=20, TypeScript ^5.7 | SDK tests only. No change. |
-| `c8@^11.0.0` | Node.js >=20 | Coverage. No change. |
+| Component | Version | Notes |
+|-----------|---------|-------|
+| `@anthropic-ai/claude-agent-sdk` | ^0.2.87 | Carry-forward from v1.1. No version bump needed for v1.2. |
+| Node.js | >=20.0.0 | `fs.readdirSync`, `String.prototype.matchAll`, `RegExp` with `/gm` — all available in Node.js 20+ |
+| `feature-map.cjs` | Internal | New module. Must pass `node:test` tests. Follows same zero-dep constraint as `arc-scanner.cjs`. |
 
 ---
 
@@ -178,30 +327,25 @@ No new directories. All new files fit into existing `agents/` and `commands/gsd/
 
 | Area | Confidence | Basis |
 |------|------------|-------|
-| Zero-dep constraint maintained | HIGH | All v1.1 additions are agent Markdown files or CJS modules using built-ins only. Verified by design. |
-| Test framework detection via package.json | HIGH | Pattern verified by implementing it against this project's own package.json — correctly identified vitest and node:test. The 5-framework fingerprint set covers >95% of Node.js projects. |
-| PRD parsing via agent (no library) | HIGH | Free-form Markdown is not parseable by regex. Agent reasoning is the only approach that handles arbitrary PRD formats. Multiple real-world Claude test-generation workflows confirm this pattern (DEV Community, Medium articles). |
-| Review via Bash tool + agent reasoning | HIGH | Confirmed by Claude Code docs: subagents with Bash tool access can run npm test and read output. The `gsd-verifier` agent already does this pattern in the existing codebase. |
-| ARC default via config fallback | HIGH | `config.cjs` already handles all config reads. One-line `?? true` fallback is a proven pattern used elsewhere in the config layer. |
-| SDK version 0.2.87 | HIGH | Verified via `npm view @anthropic-ai/claude-agent-sdk version` on 2026-03-29. |
-| New files fit in existing npm `files` array | HIGH | `agents/` and `commands/gsd/` are both in the `files` array. `get-shit-done/bin/lib/` is under `get-shit-done/` which is included. No `package.json` changes needed. |
+| Zero-dep constraint maintained | HIGH | All v1.2 additions are Markdown files or CJS modules using built-ins only. No npm package needed for string parsing of fixed-format Markdown sections. |
+| PRD frontmatter via line scan | HIGH | `status: draft`, `phase: 1` are single-key-value lines. `split(':')[1].trim()` is sufficient. Verified by reading PRD format used in `prototype.md` Step 2 extraction logic. |
+| Feature map via CJS string processing | HIGH | `CODE-INVENTORY.md` is a fixed-format Markdown table produced by `formatAsMarkdown` in `arc-scanner.cjs` (read directly). PRD Feature Groups sections are fixed-format. No semantic ambiguity. |
+| Architecture mode as flag extension | HIGH | `gsd-prototyper.md` already has conditional behavior based on `--phases` flag. Adding `--architecture` conditional follows identical pattern. Agent already reads existing files before building — two-pass works naturally. |
+| `list-prds` as 10-line gsd-tools addition | HIGH | `readdirSync` with prefix/suffix filter is the same pattern already used in `scan-sessions` case. |
+| `generate-slug` reuse for PRD filenames | HIGH | `generate-slug` is already in `gsd-tools.cjs` switch and confirmed working in `brainstorm`-adjacent workflows. |
+| Two-pass architecture + implementation | MEDIUM | This is a new workflow pattern for this codebase. The mechanism (re-spawn agent with different flags) is proven by the existing iterate loop, but the two-pass UX has not been user-tested. Flag as needing validation in Phase 1 (brainstorm/architecture). |
 
 ---
 
 ## Sources
 
-- Codebase audit (2026-03-29): all `agents/*.md`, `commands/gsd/*.md`, `get-shit-done/bin/lib/*.cjs` read directly
+- Codebase audit (2026-03-29): `commands/gsd/prototype.md`, `agents/gsd-prototyper.md`, `get-shit-done/bin/lib/arc-scanner.cjs`, `get-shit-done/bin/lib/config.cjs`, `get-shit-done/bin/gsd-tools.cjs` (lines 919-960), `.planning/PROJECT.md` — read directly
+- Previous research: `.planning/research/STACK.md` (v1.1) — carry-forward decisions confirmed
 - `npm view @anthropic-ai/claude-agent-sdk version` → `0.2.87` (2026-03-29)
-- `npm view vitest version` → `4.1.2` (2026-03-29, confirmed in devDependencies)
-- `npm view mocha version` → `11.7.5` (2026-03-29, for framework detection completeness)
-- `npm view jest version` → `30.3.0` (2026-03-29, for framework detection completeness)
-- [Create custom subagents — Claude Code Docs](https://code.claude.com/docs/en/sub-agents) — confirmed agent toolset and Bash execution patterns (MEDIUM confidence — official docs)
-- [How we use Claude Agents to automate test coverage — DEV Community](https://dev.to/melnikkk/how-we-use-claude-agents-to-automate-test-coverage-3bfa) — agent-driven test generation pattern (MEDIUM confidence)
-- [Create Reliable Unit Tests with Claude Code — DEV Community](https://dev.to/alfredoperez/create-reliable-unit-tests-with-claude-code-4e8p) — context-management patterns for test agents (MEDIUM confidence)
-- [Writing PRDs for AI Code Generation Tools in 2026 — ChatPRD](https://www.chatprd.ai/learn/prd-for-ai-codegen) — PRD-to-code agent patterns (LOW confidence — marketing content, used only for pattern validation)
-- Node.js v24.14.0 runtime on dev machine, `node:test` built-in confirmed available
+- Node.js >=20 built-in API docs — `fs.readdirSync`, `String.matchAll`, POSIX path handling — HIGH confidence (built-ins unchanged across 20/22/24)
+- `.planning/config.json` (project) and `config.cjs` VALID_KEYS array — read directly for config extension pattern
 
 ---
 
-*Stack research for: GSD Code-First Fork v1.1 — Autonomous Prototype & Review Loop*
+*Stack research for: GSD Code-First Fork v1.2 — Brainstorm, Feature Map, Architecture Mode*
 *Researched: 2026-03-29*

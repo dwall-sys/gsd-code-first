@@ -1,20 +1,22 @@
 # Feature Research
 
-**Domain:** CLI-based autonomous coding workflow — PRD-to-prototype pipeline, test generation agent, code review agent
+**Domain:** CLI-based autonomous coding workflow — brainstorm-to-PRD, feature map aggregation, architecture-mode prototyping
 **Researched:** 2026-03-29
-**Confidence:** HIGH (patterns verified across multiple current sources)
+**Confidence:** HIGH (patterns verified across multiple current sources; existing codebase read directly)
 
 ---
 
 ## Scope Note
 
-This research covers ONLY the new v1.1 features. The v1.0 feature set (ARC annotation standard, tag scanner, `/gsd:prototype`, `/gsd:iterate`, `/gsd:annotate`, `/gsd:extract-plan`, per-phase modes) is treated as the stable baseline and is not re-evaluated here.
+This research covers ONLY the new v1.2 features. The v1.0 and v1.1 feature set is treated as the stable baseline and is not re-evaluated here.
 
-The four target features for v1.1 are:
-1. **PRD-to-Prototype Pipeline** — `/gsd:prototype` reads `.planning/PRD.md`, translates acceptance criteria to `@gsd-todo` tags in the prototype
-2. **ARC as default** — `arc.enabled` always `true`, remove opt-in friction
-3. **Test-Agent** — new agent (`gsd-test-agent`) that writes unit/integration tests for annotated code, runs them, annotates gaps
-4. **Review-Agent + `/gsd:review` overhaul** — repurpose existing command from plan-review to code review (test execution, spec compliance, code quality, actionable next steps)
+The three target features for v1.2 are:
+
+1. **`/gsd:brainstorm`** — interactive conversation → structured PRD(s) with ACs, feature grouping, dependency analysis
+2. **Feature Map (`FEATURES.md`)** — auto-aggregated overview from PRDs and `@gsd-tags` in code
+3. **Architecture Mode for `/gsd:prototype`** — skeleton-first prototyping for new projects (folder structure, config, interfaces before feature code)
+
+The existing v1.1 pipeline (`/gsd:prototype` → `@gsd-todo` tags → `/gsd:iterate`) is the downstream consumer of all three features. New features must chain into that pipeline without breaking it.
 
 ---
 
@@ -22,107 +24,99 @@ The four target features for v1.1 are:
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist in an autonomous prototype-and-review CLI. Missing these = product feels broken or unfinished.
+Features users assume exist. Missing these = the new commands feel broken or incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| PRD file as structured input to prototype | Every autonomous coding pipeline in 2026 (Ralph, quantum-loop, n-dx) reads a spec or PRD file. Without it, `/gsd:prototype` is free-form — users cannot reliably drive it toward specific requirements. | MEDIUM | PRD at `.planning/PRD.md`. gsd-prototyper reads it alongside existing PROJECT.md/REQUIREMENTS.md. Command fails gracefully with scaffold offer if PRD missing. |
-| Acceptance criteria from PRD become `@gsd-todo` tags | Users expect the prototype to reflect their requirements. If PRD ACs don't appear as `@gsd-todo` tags, the code-first loop has no connection to the PRD — it's just a scaffold. | MEDIUM | Requires gsd-prototyper to parse AC list from PRD and emit one `@gsd-todo` per criterion. Agent degrades gracefully on freeform PRDs (emits best-effort `@gsd-todo` items). |
-| Test agent writes runnable tests (not stubs) | An agent billed as a "test generator" that produces placeholder stubs or non-executing tests is a known frustration. Users expect tests to run and pass. | MEDIUM | gsd-test-agent must execute the project's test command (`npm test`, `pytest`, etc.) and confirm green before completing. The test-execute-fix loop is table stakes per TiCODER research and Addy Osmani's workflow. |
-| `/gsd:review` evaluates code, not plans | The existing `/gsd:review` does cross-AI plan review. After running a prototype pipeline, users calling `/gsd:review` expect code correctness evaluation — security, spec compliance, coverage. The name creates a mismatch. | MEDIUM | Repurpose `/gsd:review` for code review. Existing plan-review behavior can be preserved via `/gsd:review --plan` flag or folded into `/gsd:plan-phase`. |
-| Review output includes actionable next steps | Code review tools that only list findings without recommending actions (fix, defer, accept-risk) are frustrating. Qodo, CodeAnt, and Codegen all surface next-steps as standard output. | LOW | Review-Agent output closes with a prioritized action list. Not just a findings dump. |
-| Human approval gate preserved across all flows | Professional developers cite approval gates as non-negotiable before major agent actions. Ralph Loop, quantum-loop, and Addy Osmani's workflow all include human-in-the-loop checkpoints. Removing gates destroys trust. | LOW | `/gsd:iterate` already has this. PRD pipeline and review loop must respect it. `--non-interactive` as escape hatch for CI only. |
-| ARC annotations always enabled by default | With ARC opt-in, new users who skip config miss the core feature. Every autonomous loop tool enforces its tracking mechanism unconditionally (Ralph's prd.json passes flag, quantum-loop's 5-state tracking). Opt-in = silent omission. | LOW | Default `arc.enabled: true` in config schema. Existing projects with explicit `arc.enabled: false` keep that setting. New installs get `true`. |
+| Brainstorm asks targeted questions before generating a PRD | Every capable AI PRD tool (ChatPRD, Figma AI, Miro AI) uses conversational back-and-forth before generating output. A command that dumps a PRD after one prompt feels unreliable and produces shallow requirements. The Addy Osmani / Bolt "discuss mode" pattern validates this. | MEDIUM | Agent asks one focused question at a time, waits for answer, builds up a picture before drafting. Not a quiz — should feel like a knowledgeable colleague scoping a project. |
+| Brainstorm output is a valid `.planning/PRD.md` | Users coming from `/gsd:brainstorm` will immediately run `/gsd:prototype`. If brainstorm output isn't in the exact format prototype expects, the chain breaks and the user has to manually reformat. The two commands must form a pipeline. | LOW | gsd-prototyper already reads `.planning/PRD.md`. Brainstorm must write to the same path with the same AC structure. No new format invention needed. |
+| Feature Map is readable as a project status summary | Developers expect a single file that answers "what's in this project and where does it stand?" — similar to how `CODE-INVENTORY.md` answers "what tags exist in this code?" The Feature Map is the high-level counterpart. | MEDIUM | Must aggregate from both PRD ACs and `@gsd-tags` in code. Read-only derived artifact — never edited manually. Regenerated on demand. |
+| Architecture Mode produces a runnable (but empty) project skeleton | Tools like the AI-first SDLC scaffold and the Go project skeleton pattern show that architecture-first prototyping is expected to produce real directory structure, config files, and typed interfaces — not documentation stubs. Empty functions and placeholder config are acceptable; non-existent files are not. | MEDIUM | Skeleton includes: project root structure, config files, entry points, typed module interfaces, `@gsd-context` and `@gsd-decision` tags but zero feature implementation. |
+| Architecture Mode is invokable via a flag on existing `/gsd:prototype` | Given that `/gsd:prototype` already exists and users are familiar with it, introducing a separate command (`/gsd:scaffold`) adds surface area that duplicates the prototype mental model. Competitors (Bolt, v0) extend existing commands with modes rather than adding parallel commands. | LOW | `--architecture` flag on `/gsd:prototype` triggers skeleton mode. Same command, different execution path inside gsd-prototyper. |
+| Feature Map includes completion status per feature | Users tracking multi-feature projects expect to see which ACs are done (implemented in code) vs. still tagged as `@gsd-todo`. Status without completion signal is just a list — not a map. | MEDIUM | Derive from: (a) `@gsd-todo` tags that remain in code = not done; (b) ACs in PRD that have no corresponding `@gsd-todo` = implemented or planned but not annotated. Surface ambiguity explicitly. |
 
 ### Differentiators (Competitive Advantage)
 
-Features that set GSD apart from Ralph, quantum-loop, Addy Osmani's workflow, and other autonomous coding pipelines.
+Features that set GSD apart from Kiro, spec-kit, Bolt discuss mode, and other tools.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| PRD ACs become machine-readable `@gsd-todo` tags | Competitors treat PRD as prose context fed to the agent. GSD translates each acceptance criterion into an `@gsd-todo` tag embedded in prototype code. This makes the PRD iterable via `/gsd:iterate` — each AC is directly executable. No competitor does this end-to-end. | MEDIUM | Requires a structured AC section in the PRD (lightweight template). gsd-prototyper parses it. The result: PRD in → annotated code out → iterate executes the ACs. Closes the loop uniquely. |
-| Test-Agent annotates untested paths with `@gsd-risk` | Generic test agents write tests and stop. GSD's Test-Agent annotates code paths that are untested or hard to test with `@gsd-risk` tags. These feed into CODE-INVENTORY.md automatically — risk is visible in planning artifacts, not silently ignored. | MEDIUM | `@gsd-risk` is already in the ARC standard. No new tooling needed — tag scanner picks them up. Agent design choice only. |
-| Two-stage review: spec compliance before code quality | quantum-loop's insight: "Stage 2 never runs if Stage 1 fails." For GSD: verify that PRD acceptance criteria are met before evaluating code quality. Surfaces requirements gaps before wasting review cycles on style/security in code that doesn't meet the spec. | MEDIUM | Stage 1: check each PRD AC against code/tests. Stage 2: correctness, security, maintainability. Clear output sections. Agent design — no extra tooling. |
-| ARC always-on removes "what mode am I in" cognitive overhead | With ARC opt-in, users must remember to configure it. Making ARC always-on means the `/gsd:iterate` step 4 branch (`config-get arc.enabled`) is removed — always spawns `gsd-arc-executor`. Simpler mental model, simpler code path. | LOW | Also simplifies future documentation — no mode explanation needed. |
-| Review findings structured for future `--fix` chaining | If review output follows a consistent Markdown schema (defined sections, machine-parseable action items), a future `--fix` flag can pipe review findings into `/gsd:iterate` as `@gsd-todo` tags. No competitor closes this loop. | LOW (design only now) | Design the output schema now even if `--fix` is deferred. Costs nothing at design time; retroactively structuring output is expensive. |
+| Brainstorm outputs feature-grouped PRD with dependency graph | Bolt/v0 brainstorm produces flat feature lists. Kiro produces linear requirements. GSD's gsd-brainstormer should cluster features into cohesive groups (auth, data model, UI) and surface cross-feature dependencies as text before writing the PRD. This directly informs phase structure in the roadmap. | HIGH | Dependency analysis is the hard part — requires the agent to reason about which features must come before others. Output section: "Feature Groups + Dependencies" before the AC list. The roadmapper agent consumes this output. |
+| Feature Map derived from code annotations, not just docs | Kiro, spec-kit, and quantum-loop all track state in external JSON/markdown config files. GSD's differentiator (from v1.0) is that `@gsd-tags` embedded in code ARE the state. FEATURES.md should aggregate from live code annotations — not from a separate state file. This means FEATURES.md is always in sync with the actual code, not a manually maintained artifact. | MEDIUM | `extract-tags` already produces `CODE-INVENTORY.md`. Feature Map aggregator reads CODE-INVENTORY.md plus PRD ACs to produce a higher-level view. No new scanner needed — new aggregation logic only. |
+| Architecture Mode annotates structural decisions with `@gsd-decision` tags | Generic scaffolding tools produce folder structure with no explanation for why choices were made. gsd-prototyper in architecture mode embeds `@gsd-decision(phase:0)` tags in config files and module boundaries explaining the architectural choice. This feeds into CODE-INVENTORY.md and makes the "why" of the architecture visible to future agents. | LOW (agent design) | No new tooling — `@gsd-decision` is already in the ARC standard. Agent design choice only. Payoff is high: future `/gsd:iterate` runs have architectural context embedded in the code they're editing. |
+| Brainstorm can output multiple scoped PRDs for phased delivery | Large projects in 2026 are built in phases. Brainstorm agents (ChatPRD, Miro, Figma) produce one monolithic PRD. GSD's brainstormer should offer to split output into phase-scoped PRD files (e.g., `PRD-phase-1.md`, `PRD-phase-2.md`) aligned with roadmap phases. Each scoped PRD feeds a separate `/gsd:prototype --phases N` run. | HIGH | Complex: requires the brainstormer to do phase decomposition, not just feature listing. The payoff is substantial — no other tool closes the brainstorm → phased prototype loop end-to-end. May be v1.2+ not v1.2 launch. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
-Features that seem productive but create problems in this domain.
-
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Fully autonomous PRD-to-tests-to-review with no human checkpoint | Maximum productivity, zero interruptions | Agents hallucinate APIs, miss domain edge cases, produce plausible-but-wrong code. Shipping 1000-line agent PRs without review is a documented anti-pattern (multiple 2026 sources). One wrong prototype decision compounds through tests and review. | Keep approval gates. Make each step fast (show diff, await Y/N). `--non-interactive` for CI only. |
-| Test agent targeting 100% coverage | Sounds thorough | Produces tests that mock behavior instead of testing it, brittle tests, and coverage theater — all green, zero real safety net. This is the #1 anti-pattern in automated test generation (TiCODER research, Codepipes anti-patterns). | Target tests for `@gsd-risk` annotated paths and critical paths first. Accept < 100% coverage with honest `@gsd-risk` annotation rather than fake 100%. |
-| Single mega-agent for PRD + prototype + tests + review | Simpler one-command interface | Context window exhaustion, role confusion, inability to restart at failed step, poor separation of concerns. Single-agent approaches for multi-step complex pipelines consistently underperform specialized agents (validated by ChatDev, MetaGPT, quantum-loop research). | Specialized agents: gsd-prototyper, gsd-test-agent, gsd-review-agent. Chain via commands with checkpoints. |
-| Free-form PRD with no structure requirement | Zero friction for users | Non-deterministic prototype quality. Different prose styles produce radically different output quality, making the tool feel unreliable. Agents cannot reliably extract acceptance criteria from unstructured paragraphs. | Lightweight PRD template (problem statement + acceptance criteria list). Ship as scaffold. Agent handles prose outside the template gracefully — template defines the minimum structure. |
-| Parallel test generation across all files simultaneously | Faster test coverage | Duplicate test coverage, conflicting test fixtures, race conditions in shared test infrastructure (setup/teardown files). Coordination overhead exceeds parallelism benefit for test generation specifically. | Sequential test generation with file-level isolation. Fast enough; avoids coordination complexity entirely. |
-| Auto-commit after prototype or test generation | Convenience, less manual git work | Autonomous commits without review is the pattern that erodes developer trust in AI tooling. Codex CLI and quantum-loop both explicitly gate on human approval before any git operations. | Show what would be committed. Let the developer decide. At most, stage files — never commit without explicit user action. |
+| Brainstorm generates code immediately after conversation | Zero-friction — "skip the PRD, just build it" | Without a structured PRD intermediate artifact, there is no checkpoint for human review of requirements before code generation begins. Kiro's linear Requirements → Design → Tasks explicitly prevents this. The human must see and confirm what's being built before the builder starts. Silent scope decisions by the agent compound into major rewrites. | Write PRD, present for confirmation, then user manually runs `/gsd:prototype`. Never auto-chain brainstorm → prototype without a stop. |
+| Feature Map is manually editable | Users want to add custom status, notes, flags | Manual edits will be overwritten on the next aggregation run. This creates frustration and loss of human annotations. Every auto-generated artifact in the project (CODE-INVENTORY.md, REVIEW-CODE.md) is derived-only for this reason. | Add a `FEATURES-NOTES.md` sidecar file for human annotations that is never overwritten. FEATURES.md stays derived. |
+| Architecture Mode builds a full working app skeleton for any stack | "Just scaffold my Next.js app with auth, DB, and API layer" | Stack-specific scaffold generation is a maintenance burden at the agent layer. There are well-maintained generators for this (create-next-app, create-t3-app). GSD's architecture mode should focus on structural decisions and annotation, not on replacing dedicated scaffolding tools. | Architecture Mode outputs project structure + interface stubs + `@gsd-decision` tags. Delegates actual boilerplate generation to dedicated tools (`npx create-next-app`, etc.) which the agent can invoke. |
+| Brainstorm replaces the PRD entirely (code-only output) | Maximum automation | Spec-kit research (Martin Fowler, 2026) explicitly warns that generating code without a human-reviewable spec artifact amplifies AI hallucinations rather than preventing them. The spec (PRD) is the checkpoint. Removing it removes the error-correction surface. | PRD is always the intermediate artifact. It can be minimal (one section, 5 ACs) but it exists and the human sees it. |
+| Feature Map shows line-level code coverage per feature | Seems thorough — "which lines implement feature X?" | Requires linking `@gsd-ref` tags in code to PRD ACs with 100% tag discipline. In practice, developers skip tags on refactored code. False "0% coverage" signals are worse than no signal — they erode trust in the entire tool. | Feature Map shows AC-level status (todo tag present / absent) rather than line-level coverage. Simpler, more reliable signal. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[.planning/PRD.md]
-    └──required-by──> [PRD-to-Prototype Pipeline]
-                          └──gsd-prototyper reads PRD
-                          └──produces──> [Prototype with @gsd-todo tags from ACs]
-                                             └──feeds──> [/gsd:iterate (existing, unchanged)]
-                                             └──feeds──> [gsd-test-agent]
+[/gsd:brainstorm]
+    └──writes──> [.planning/PRD.md]
+                     └──required-by──> [/gsd:prototype (existing)]
+                     └──required-by──> [Feature Map aggregation]
+                                           └──reads-also──> [CODE-INVENTORY.md]
+                                                               └──derived-from──> [@gsd-tags in code (existing)]
 
-[Prototype / existing codebase with @gsd-tags]
-    └──required-by──> [gsd-test-agent]
-                          └──writes test files
-                          └──runs test command
-                          └──emits @gsd-risk tags on untested paths
-                          └──feeds──> [CODE-INVENTORY.md (via extract-plan)]
+[/gsd:prototype --architecture]
+    └──spawns-variant──> [gsd-prototyper (existing agent, architecture mode)]
+                              └──produces──> [project skeleton + @gsd-decision/@gsd-context tags]
+                              └──feeds──> [CODE-INVENTORY.md (via existing extract-tags)]
+                              └──enables──> [/gsd:prototype (feature mode, next run)]
 
-[Runnable test suite]
-    └──required-by──> [gsd-review-agent Stage 2]
-                          (Stage 1 can run without tests; Stage 2 needs test execution)
+[Feature Map (/gsd:feature-map OR /gsd:extract-plan --summary)]
+    └──requires──> [CODE-INVENTORY.md (from extract-tags)]
+    └──requires──> [.planning/PRD.md (for AC list)]
+    └──produces──> [.planning/FEATURES.md]
 
-[ARC always-on (arc.enabled: true default)]
-    └──simplifies──> [/gsd:iterate step 4] (removes config-get branch, always uses gsd-arc-executor)
-    └──enables──> [gsd-review-agent] (can assume @gsd-risk tags exist; no "ARC might be off" guard)
-
-[Review output (REVIEW-CODE.md, structured Markdown)]
-    └──enables──> [future --fix flag] (pipe findings into iterate as @gsd-todo tags)
-    └──must-not-conflict-with──> [existing REVIEWS.md] (plan review output from original /gsd:review)
+[Existing /gsd:iterate]
+    └──unchanged──> reads CODE-INVENTORY.md, no dependency on new features
+    └──enhanced-by──> [@gsd-decision tags from architecture mode providing context to gsd-code-planner]
 ```
 
 ### Dependency Notes
 
-- **PRD-to-Prototype requires a PRD file:** Command must fail gracefully with a scaffold offer (`/gsd:prototype --init-prd`) if `.planning/PRD.md` is missing. Hard failure without guidance abandons users.
-- **Test-Agent requires code to exist:** Can run on prototype output OR on existing codebases (brownfield). Both paths valid. Agent reads `@gsd-todo` and `@gsd-risk` tags as priority hints for what to test first.
-- **Review-Agent Stage 2 requires a test runner:** If no test command is detected (`npm test`, `pytest`, `make test`), Stage 2 should document the absence as a `@gsd-risk` rather than silently skipping execution. Do not fail silently.
-- **ARC always-on simplifies iterate:** Removing the `config-get arc.enabled` branch in `/gsd:iterate` step 4 is a clean-up task enabled by making ARC the default. Track as a sub-task of "ARC as default."
-- **Review output file naming:** Existing `/gsd:review` produces `REVIEWS.md` (plan review). New code review must produce a different file — `REVIEW-CODE.md` — to prevent overwriting the existing plan-review artifact. This is a hard naming constraint.
+- **Brainstorm requires nothing upstream:** It is an entry point — works on a fresh project with no existing planning artifacts. It initializes the PRD that everything else reads.
+- **Feature Map requires CODE-INVENTORY.md:** The extract-tags scanner must have run first. Feature Map is a second-pass aggregator, not a primary scanner.
+- **Architecture Mode is a flag on existing `/gsd:prototype`:** The existing gsd-prototyper agent handles it. No new agent file needed — architecture mode is a behavioral variant controlled by the `--architecture` flag in the prompt sent to gsd-prototyper.
+- **Feature Map and PRD are decoupled from `/gsd:iterate`:** The iterate loop does not need FEATURES.md to function. Feature Map is a summary artifact for human consumption, not an agent input (initially). This keeps the dependency chain shallow.
+- **Multi-PRD brainstorm output requires roadmap awareness:** If brainstorm splits into phase-scoped PRDs, the gsd-roadmapper agent must have already produced a ROADMAP.md with phase structure. Brainstorm-with-phase-split is therefore a v1.2+ feature gated on roadmap existence, not a v1.2 launch requirement.
 
 ---
 
 ## MVP Definition
 
-### Launch With (v1.1)
+### Launch With (v1.2)
 
-Minimum viable product for this milestone — what validates the "PRD in, prototype out, tested and reviewed" loop.
+Minimum viable product for this milestone — what validates the "brainstorm → PRD → prototype → feature map" complete workflow.
 
-- [ ] **ARC always-on** — Config default change + remove branch in `/gsd:iterate` step 4. Low complexity, high payoff. Unlocks everything downstream cleanly.
-- [ ] **PRD-to-Prototype pipeline** — Update gsd-prototyper to read `.planning/PRD.md`, parse acceptance criteria, emit `@gsd-todo` tags per AC. Update `/gsd:prototype` command to pass PRD path as context. Add graceful missing-PRD handling.
-- [ ] **gsd-test-agent + `/gsd:add-tests`** — New agent that writes runnable tests, executes them, annotates untested paths with `@gsd-risk`. Wire into existing `/gsd:add-tests` command (currently exists — verify if stub or implemented).
-- [ ] **gsd-review-agent + `/gsd:review` overhaul** — Replace plan-review behavior with two-stage code review (spec compliance then code quality). Output to `REVIEW-CODE.md`. Preserve existing plan-review as `/gsd:review --plan`. Actionable next-steps section required.
+- [ ] **`/gsd:brainstorm` command** — conversational agent asks targeted questions, writes `.planning/PRD.md` in the exact format `/gsd:prototype` expects, confirms with user before writing. Single PRD output (no phase splitting at launch).
+- [ ] **`gsd-brainstormer` agent** — new agent file. Asks questions one at a time, groups features, identifies cross-feature dependencies, produces PRD with AC list and a brief dependency summary. Writes to `.planning/PRD.md`.
+- [ ] **`/gsd:prototype --architecture`** — architecture mode flag on existing command. Spawns gsd-prototyper with architecture mode context: produce skeleton (folder structure, config, entry points, typed interfaces) with `@gsd-decision` and `@gsd-context` tags. Zero feature implementation.
+- [ ] **Feature Map command** — new command that reads `CODE-INVENTORY.md` + `.planning/PRD.md` and writes `.planning/FEATURES.md` with feature status (which ACs have `@gsd-todo` tags vs. which are absent from code). Either `/gsd:feature-map` standalone or `--summary` flag on `/gsd:extract-plan`.
 
-### Add After Validation (v1.1+)
+### Add After Validation (v1.2+)
 
-- [ ] **Review-to-iterate chain (`--fix` flag)** — Pipe structured review findings into `/gsd:iterate` as `@gsd-todo` tags. Trigger: users manually copying review findings into iterate more than twice.
-- [ ] **PRD template scaffolding (`/gsd:prototype --init-prd`)** — Generate `.planning/PRD.md` template with problem statement + AC list sections. Trigger: users reporting confusion about PRD format.
-- [ ] **`@gsd-coverage` tag type** — Surface test coverage gaps in CODE-INVENTORY.md as a new tag type. Trigger: Test-Agent adopted and coverage visibility becomes a planning need.
+- [ ] **Multi-PRD phase splitting in brainstorm** — offer to split output into `PRD-phase-1.md`, `PRD-phase-2.md`, etc., aligned with ROADMAP.md phases. Trigger: users with large projects reporting the monolithic PRD is unwieldy.
+- [ ] **Feature Map auto-refresh hook** — regenerate FEATURES.md automatically after each `/gsd:iterate` run. Trigger: users forget to run feature-map manually and see stale status.
+- [ ] **`FEATURES-NOTES.md` sidecar** — human-editable companion file that is never overwritten. Trigger: users requesting persistent notes on features.
+- [ ] **Brainstorm → feature-map chain** — auto-generate initial FEATURES.md at end of brainstorm run (before any code exists, shows all ACs as pending). Trigger: users wanting to see the full feature list immediately after scoping.
 
 ### Future Consideration (v2+)
 
-- [ ] **Parallel test generation** — Defer: adds coordination complexity, not needed for single-developer workflow.
-- [ ] **Automated CI/CD integration** — Defer until there's clear user demand for unattended pipeline runs.
-- [ ] **Multi-language test runner auto-detection beyond Node.js** — Start with `npm test` (known project context). Add Python/Go later.
+- [ ] **Spec-as-source mode** — FEATURES.md becomes the source of truth; code is generated from it. Heavy: requires bidirectional sync between spec and code. Martin Fowler's SDD research identifies this as the hardest and most fragile approach.
+- [ ] **Feature Map with code coverage links** — link features to specific files/functions. Requires full `@gsd-ref` discipline across the codebase; too fragile to require at v1.2.
+- [ ] **Brainstorm from existing codebase** — "I have code, help me write the PRD that describes it." Reverse-engineering intent from code. Brownfield use case. High value but distinct enough to be its own milestone.
 
 ---
 
@@ -130,57 +124,52 @@ Minimum viable product for this milestone — what validates the "PRD in, protot
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| ARC always-on | HIGH | LOW | P1 |
-| PRD-to-Prototype pipeline | HIGH | MEDIUM | P1 |
-| gsd-test-agent + test command | HIGH | MEDIUM | P1 |
-| `/gsd:review` overhaul — code review | HIGH | MEDIUM | P1 |
-| Two-stage review gate (spec then quality) | MEDIUM | LOW (agent design only) | P2 |
-| `@gsd-risk` tags from Test-Agent | MEDIUM | LOW (agent design, tag exists) | P2 |
-| Structured review output schema for future `--fix` | MEDIUM | LOW (design choice now) | P2 |
-| Review-to-iterate chain (`--fix`) | MEDIUM | HIGH | P3 |
-| PRD template scaffolding | LOW | LOW | P3 |
+| `/gsd:brainstorm` command + gsd-brainstormer agent | HIGH | MEDIUM | P1 |
+| Brainstorm writes valid `.planning/PRD.md` (prototype-compatible) | HIGH | LOW (format already defined) | P1 |
+| `/gsd:prototype --architecture` flag | HIGH | LOW (flag + prompt variant in existing agent) | P1 |
+| Feature Map command + FEATURES.md output | MEDIUM | MEDIUM | P1 |
+| Brainstorm feature grouping + dependency analysis | MEDIUM | MEDIUM (agent reasoning) | P2 |
+| Architecture mode `@gsd-decision` annotation discipline | MEDIUM | LOW (agent design choice) | P2 |
+| Feature Map completion status (todo tag present/absent) | MEDIUM | LOW (derive from CODE-INVENTORY.md) | P2 |
+| Multi-PRD phase splitting | MEDIUM | HIGH | P3 |
+| Brainstorm → feature-map auto-chain | LOW | LOW | P3 |
 
 **Priority key:**
-- P1: Must have for v1.1 launch
-- P2: Should have, include in v1.1 if capacity permits
-- P3: Defer to v1.1+ or v2
+- P1: Must have for v1.2 launch
+- P2: Should have, include in v1.2 if capacity permits
+- P3: Defer to v1.2+ or v2
 
 ---
 
 ## Competitor Feature Analysis
 
-These tools define the feature expectations users bring to autonomous coding pipelines. None are direct GSD competitors (no ARC annotations, no code-first philosophy), but they set the baseline users expect.
+How competing tools handle the same three domains. None match GSD's code-embedded state model.
 
-| Feature | Ralph Loop | quantum-loop | Addy Osmani Workflow | GSD v1.1 Approach |
-|---------|------------|--------------|----------------------|-------------------|
-| PRD input format | prd.json with user stories + passes flag | spec file → structured tasks JSON | Prose brainstorm → structured plan | `.planning/PRD.md` Markdown (lightweight, no JSON) |
-| Prototype generation | Iterative loop until all PRD items complete | DAG-based parallel story execution | Sequential task execution | Single-shot prototype with ARC tags, then iterate |
-| AC → task translation | passes flag per story in prd.json | 5-state story tracking in quantum.json | Manual task breakdown | `@gsd-todo` tag per AC, embedded in code |
-| Test integration | Test runner called post-implementation; loop retries on failure | TDD: tests before implementation | Write tests → run → fix loop | Test-Agent post-prototype; runs tests; annotates gaps with `@gsd-risk` |
-| Code review | Not built-in | Two-stage (spec then code quality) | Human line-by-line + secondary AI session | Review-Agent: two-stage output in REVIEW-CODE.md |
-| Approval gate | No explicit gate; loop runs until prd.json is complete | Human review gate between stages | Explicit human review before merge | Preserved: human approval before each major step |
-| State persistence | prd.json + progress.txt + git history | quantum.json state machine | Git + task list | @gsd-tags embedded in code + CODE-INVENTORY.md |
+| Feature | Bolt discuss mode | Kiro (spec-driven) | spec-kit (GitHub) | GSD v1.2 Approach |
+|---------|------------------|--------------------|-------------------|-------------------|
+| Brainstorm / scoping | "discuss mode" — conversational without committing code changes; flat feature list output | Requirements → Design → Tasks linear flow; structured but no conversational scoping | Constitution → Specify → Plan → Tasks; constitution defines immutable principles upfront | Conversational questions → feature-grouped PRD with dependency analysis; outputs machine-compatible `.planning/PRD.md` |
+| Architecture-first support | None — always feature-first | Design document includes architecture section; not skeleton code | Constitution file defines architecture as text; no skeleton code | `--architecture` flag produces real skeleton code with `@gsd-decision` tags embedded in structure |
+| Feature tracking artifact | None (no persistent tracking after scoping) | Spec markdown files per feature; external to code | Many markdown files per branch; spec-anchored but not code-embedded | FEATURES.md derived from live `@gsd-tags` + PRD ACs; always in sync with code state |
+| State location | External (brainstorm ends, state lost) | External markdown files | External markdown files | Embedded in code as `@gsd-tags`; CODE-INVENTORY.md is the derived index |
+| Brainstorm-to-code chain | Manual: user takes brainstorm output and starts a new build prompt | Manual: user runs Kiro commands sequentially | Manual: user runs spec-kit commands per branch | Explicit: brainstorm writes PRD → user runs `/gsd:prototype` → annotated scaffold produced |
+| Human checkpoint | Discuss mode has no explicit confirmation before code generation | Each of Requirements/Design/Tasks are separate steps with human review | Branched workflow implies human review between steps | Explicit confirmation gate: brainstorm shows PRD and asks user to confirm before writing; prototype confirms ACs before building |
 
-**Key GSD differentiation:** Competitors track state in external JSON/config files separate from the code. GSD embeds state (as ARC tags) directly in the code. The code IS the source of truth — no sync problem between code and state file. This is the core architectural bet of the entire fork.
+**Key GSD differentiation for v1.2:** Kiro and spec-kit both produce specs as external markdown files managed separately from code. GSD's Feature Map is derived from `@gsd-tags` that live IN the code — making FEATURES.md an always-current reflection of code state, not a document that drifts from reality. This is the same architectural bet from v1.0 applied to feature tracking.
 
 ---
 
 ## Sources
 
-- [quantum-loop — spec-driven with DAG execution and two-stage review gates](https://github.com/andyzengmath/quantum-loop) — HIGH confidence (WebFetch confirmed architecture)
-- [Ralph Loop — PRD-driven autonomous coding loop](https://github.com/snarktank/ralph) — MEDIUM confidence (WebSearch + Ralph Wiggum review article verified)
-- [Addy Osmani — LLM coding workflow going into 2026](https://addyosmani.com/blog/ai-coding-workflow/) — HIGH confidence (WebFetch confirmed table stakes patterns)
-- [TiCODER — test-driven interactive code generation research (Penn)](https://www.seas.upenn.edu/~asnaik/assets/papers/tse24_ticoder.pdf) — MEDIUM confidence (abstract verified via search)
-- [Agentic Coding Trends Report 2026 — Anthropic](https://resources.anthropic.com/hubfs/2026%20Agentic%20Coding%20Trends%20Report.pdf) — HIGH confidence (official Anthropic publication)
-- [AI Code Review Tools: 8 Options for the Agent Era — Codegen](https://codegen.com/blog/ai-code-review-tools/) — MEDIUM confidence (WebSearch)
-- [Code Review in the Age of AI — Addy Osmani](https://addyo.substack.com/p/code-review-in-the-age-of-ai) — MEDIUM confidence (WebSearch)
-- [Software Testing Anti-Patterns — Codepipes](https://blog.codepipes.com/testing/software-testing-antipatterns.html) — HIGH confidence (well-known reference, multiple corroborating sources)
-- [AI Agent Anti-Patterns Part 1 — Allen Chan, March 2026](https://achan2013.medium.com/ai-agent-anti-patterns-part-1-architectural-pitfalls-that-break-enterprise-agents-before-they-32d211dded43) — MEDIUM confidence (WebSearch, recent)
-- [How to Do Code Reviews in the Agentic Era — Google Cloud Community](https://medium.com/google-cloud/how-to-do-code-reviews-in-the-agentic-era-0b6584700f47) — MEDIUM confidence (WebSearch)
-- [The State of AI Coding Agents 2026 — Dave Patten](https://medium.com/@dave-patten/the-state-of-ai-coding-agents-2026-from-pair-programming-to-autonomous-ai-teams-b11f2b39232a) — MEDIUM confidence (WebSearch)
-- Existing codebase: `/commands/gsd/prototype.md`, `/commands/gsd/review.md`, `/commands/gsd/iterate.md` — HIGH confidence (direct read)
+- [Addy Osmani — AI-Driven Prototyping: v0, Bolt, and Lovable Compared](https://addyo.substack.com/p/ai-driven-prototyping-v0-bolt-and) — HIGH confidence (WebFetch verified)
+- [Martin Fowler — Understanding Spec-Driven-Development: Kiro, spec-kit, and Tessl](https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html) — HIGH confidence (WebFetch verified, Fowler is authoritative)
+- [Bolt discuss mode — Bolt Beginners Guide](https://www.nocode.mba/articles/bolt-beginners-guide) — MEDIUM confidence (WebSearch)
+- [AI-First SDLC Scaffold — pangon/ai-sdlc-scaffold](https://github.com/pangon/ai-sdlc-scaffold) — MEDIUM confidence (WebSearch, README pattern described)
+- [ChatPRD — conversational PRD generation](https://www.chatprd.ai/resources/using-ai-to-write-prd) — MEDIUM confidence (WebSearch)
+- [Addy Osmani — LLM coding workflow going into 2026](https://addyosmani.com/blog/ai-coding-workflow/) — HIGH confidence (verified in v1.1 research)
+- Existing codebase reads: `/commands/gsd/prototype.md`, `/commands/gsd/iterate.md`, `/commands/gsd/extract-plan.md`, `/agents/gsd-prototyper.md`, `/agents/gsd-code-planner.md`, `/get-shit-done/references/arc-standard.md`, `.planning/PROJECT.md` — HIGH confidence (direct read)
+- Existing research: `.planning/research/FEATURES.md` (v1.1) — HIGH confidence (direct read, stable baseline confirmed)
 
 ---
 
-*Feature research for: gsd-code-first v1.1 autonomous prototype and review loop*
+*Feature research for: gsd-code-first v1.2 — brainstorm command, feature map, architecture mode*
 *Researched: 2026-03-29*
