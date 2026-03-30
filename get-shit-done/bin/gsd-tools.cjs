@@ -138,6 +138,9 @@
  *   detect-test-framework [dir]        Detect test framework from package.json
  *                                      Outputs: { framework, testCommand, filePattern }
  *                                      Defaults to cwd if dir not provided
+ *
+ * Feature Aggregation:
+ *   aggregate-features [--output path] [--inventory path]  Generate .planning/FEATURES.md from PRDs and CODE-INVENTORY.md
  */
 
 const fs = require('fs');
@@ -952,6 +955,17 @@ async function runCommand(command, args, cwd, raw) {
       const testDetector = require('./lib/test-detector.cjs');
       const result = testDetector.detectTestFramework(targetDir);
       core.output(result, raw, `${result.framework}: ${result.testCommand}`);
+      break;
+    }
+
+    case 'aggregate-features': {
+      const allArgs = args.slice(1);
+      const named = parseNamedArgs(allArgs, ['output', 'inventory']);
+      const featureAggregator = require('./lib/feature-aggregator.cjs');
+      featureAggregator.cmdAggregateFeatures(cwd, {
+        outputFile: named.output,
+        inventoryFile: named.inventory,
+      });
       break;
     }
 
