@@ -100,7 +100,7 @@ function readProjectConventions(projectRoot) {
 
   // --- Test pattern detection ---
   // @gsd-decision Check for tests/ or __tests__/ directory first, then fall back to checking for colocated .test. files
-  const hasTestsDir = report.existingDirs.some(d => d.endsWith('/tests') || d.endsWith('/__tests__'));
+  const hasTestsDir = report.existingDirs.some(d => d === 'tests' || d === '__tests__' || d.endsWith('/tests') || d.endsWith('/__tests__'));
   if (hasTestsDir) {
     report.testPattern = 'separate-dir';
   }
