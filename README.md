@@ -63,6 +63,24 @@ Track multi-feature project status automatically:
   -> Regenerates automatically when /gsd:extract-plan runs
 ```
 
+## Monorepo Mode
+
+Work on individual apps in a monorepo without scanning the entire codebase:
+
+```
+/gsd:monorepo-init
+  -> Auto-detects NX / Turbo / pnpm workspaces
+  -> Creates per-app .planning/ directories
+  -> Generates package manifests for shared packages
+
+/gsd:prototype --app apps/dashboard
+  -> Scopes all work to that app
+  -> CODE-INVENTORY.md, PRD.md, FEATURES.md per app
+  -> Shared packages injected as lightweight manifests (exports + types only)
+```
+
+Supports NX (`nx.json`), Turborepo (`turbo.json`), and pnpm workspaces (`pnpm-workspace.yaml`).
+
 ## ARC Annotations
 
 ARC (Annotated Reasoning in Code) tags are structured comments that planning agents read to understand your code's intent, decisions, and next steps without reading every file.
@@ -105,6 +123,7 @@ For full tag syntax, metadata format, and per-language examples, see [arc-standa
 | `/gsd:review-code` | Two-stage review: spec compliance + code quality |
 | `/gsd:set-mode` | Configure workflow mode (code-first, plan-first, hybrid) |
 | `/gsd:deep-plan` | Chain discuss + plan for upfront reasoning phases |
+| `/gsd:monorepo-init` | Initialize monorepo mode: detect workspace, setup per-app planning |
 
 All original GSD commands continue working unchanged.
 

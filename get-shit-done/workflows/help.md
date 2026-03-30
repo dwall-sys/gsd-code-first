@@ -639,4 +639,12 @@ Usage: `/gsd:brainstorm [--resume]`
 **`/gsd:review-code`**
 Two-stage prototype review: spec compliance (Stage 1) then code quality (Stage 2).
 Usage: `/gsd:review-code [--non-interactive]`
+
+**`/gsd:monorepo-init`**
+Initialize monorepo mode: detect workspace, list apps/packages, create per-app .planning/ dirs, generate package manifests.
+Usage: `/gsd:monorepo-init`
+
+**Monorepo `--app` flag:**
+Scope any command to a specific app in a monorepo. Works with prototype, iterate, extract-plan, brainstorm, add-tests, review-code.
+Usage: `/gsd:prototype --app apps/dashboard`
 </reference>
