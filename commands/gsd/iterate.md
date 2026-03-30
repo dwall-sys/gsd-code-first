@@ -1,7 +1,7 @@
 ---
 name: gsd:iterate
 description: Run the full code-first iteration loop - extract tags, generate plan, approve, execute (Code-First fork)
-argument-hint: "[--non-interactive] [--verify] [--annotate]"
+argument-hint: "[--auto] [--max N] [--non-interactive] [--verify] [--annotate]"
 allowed-tools:
   - Read
   - Write
@@ -18,8 +18,10 @@ Orchestrates the complete code-first development loop. It extracts `@gsd-tags` f
 This is the flagship command of the gsd-code-first fork — the core value proposition that turns annotated code into executed plans in a single command.
 
 **Arguments:**
+- `--auto` — run multiple iterations automatically until all @gsd-todo tags are resolved (implies --non-interactive for inner approvals)
+- `--max N` — maximum iterations in --auto mode (default: 5)
 - `--non-interactive` — skip the approval gate and auto-approve the generated plan (for CI/headless pipelines)
-- `--verify` — run `/gsd:verify-work` after the executor completes
+- `--verify` — run `/gsd:verify-work` after the last iteration completes
 - `--annotate` — refresh `@gsd-tags` by re-running extract-tags after the executor completes
 
 **Error handling:** If any step fails, iterate stops immediately and reports the failure. No subsequent steps are executed after a failure.
@@ -34,6 +36,19 @@ $ARGUMENTS
 </context>
 
 <process>
+
+## Step 0 — Parse flags
+
+Check `$ARGUMENTS` for:
+- `--auto` — if present, set `auto_mode = true`
+- `--max N` — if present, set `max_iterations = N` (default: 5)
+- `--non-interactive` — if present, set `non_interactive = true`
+- `--verify` — if present, set `verify = true`
+- `--annotate` — if present, set `annotate = true`
+
+If `auto_mode` is true, also set `non_interactive = true` (auto mode implies non-interactive for all inner approvals).
+
+Log: "Mode: {auto with max N iterations | single pass} | Non-interactive: {yes|no}"
 
 ## Step 1 — Show current mode and run extract-tags
 
@@ -108,18 +123,49 @@ Re-run extract-tags to refresh CODE-INVENTORY.md with any new or updated annotat
 node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" extract-tags --format md --output .planning/prototype/CODE-INVENTORY.md
 ```
 
-## Step 6 — Show summary
+## Step 6 — Auto-loop (if --auto)
+
+**Skip this step if `auto_mode` is false.** Proceed to Step 7.
+
+After the executor completes, re-run extract-tags to refresh CODE-INVENTORY.md:
+
+```bash
+node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" extract-tags --format md --output .planning/prototype/CODE-INVENTORY.md
+```
+
+Count remaining @gsd-todo tags:
+
+```bash
+TODO_REMAINING=$(grep -c "@gsd-todo" .planning/prototype/CODE-INVENTORY.md 2>/dev/null || echo "0")
+```
+
+**If `TODO_REMAINING` is 0:** Log "All @gsd-todo tags resolved after [ITERATION] iteration(s)." and proceed to Step 7.
+
+**If `ITERATION` equals `max_iterations`:** Log "Iteration cap ([max_iterations]) reached. [TODO_REMAINING] @gsd-todo tags remain." and proceed to Step 7.
+
+**Otherwise:** Increment `ITERATION`. Log: "--- Iteration [ITERATION]/[max_iterations] --- ([TODO_REMAINING] todos remaining)". Loop back to Step 2 (spawn code-planner with refreshed CODE-INVENTORY.md). Inner plans are auto-approved (--auto implies --non-interactive).
+
+## Step 7 — Show summary
 
 Display a completion summary to the user:
 
 ```
 iterate complete.
 
-Steps completed: [list of steps 1-5 that ran]
+Mode: [auto (N iterations) | single pass]
+Steps completed: [list of steps that ran]
 Plan path: .planning/prototype/[plan-filename]
 Executor: [gsd-arc-executor | gsd-executor]
+Iterations: [ITERATION] of [max_iterations] {if auto_mode}
+@gsd-todo remaining: [TODO_REMAINING] {if auto_mode}
 Verification: [ran | skipped]
 Re-annotation: [ran | skipped]
+```
+
+**If auto_mode and TODO_REMAINING > 0:**
+```
+Note: [TODO_REMAINING] @gsd-todo tags remain after [max_iterations] iterations.
+Run /gsd:iterate --auto to continue, or /gsd:iterate for a single controlled pass.
 ```
 
 </process>
