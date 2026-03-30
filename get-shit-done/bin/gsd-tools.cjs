@@ -958,6 +958,36 @@ async function runCommand(command, args, cwd, raw) {
         break;
       }
 
+      // Session fallback: auto-scope to SESSION.json current_app when no --app flag
+      {
+        const sessionManager = require('./lib/session-manager.cjs');
+        const sessionApp = sessionManager.resolveCurrentApp(cwd, null);
+        if (sessionApp) {
+          const workspaceDetector = require('./lib/workspace-detector.cjs');
+          const monorepoContext = require('./lib/monorepo-context.cjs');
+          const workspace = workspaceDetector.detectWorkspace(cwd);
+          const validation = workspace ? workspaceDetector.validateAppPath(workspace, sessionApp) : { valid: false };
+          if (validation.valid) {
+            const scoped = monorepoContext.scopeExtractTags(cwd, validation.resolved.path, {
+              phaseFilter, typeFilter, format: format || 'json', outputFile,
+            });
+            arcScanner.cmdExtractTags(cwd, scoped.targetPath, { ...scoped });
+
+            if (scoped.outputFile) {
+              try {
+                const featureAggregator = require('./lib/feature-aggregator.cjs');
+                featureAggregator.cmdAggregateFeatures(cwd, {
+                  inventoryFile: scoped.outputFile,
+                });
+              } catch (e) {
+                process.stderr.write(`feature-aggregator: auto-chain skipped — ${e.message}\n`);
+              }
+            }
+            break;
+          }
+        }
+      }
+
       arcScanner.cmdExtractTags(cwd, targetPath, {
         phaseFilter,
         typeFilter,
