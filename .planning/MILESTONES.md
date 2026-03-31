@@ -1,5 +1,24 @@
 # Milestones
 
+## v1.3 Monorepo Mode (Shipped: 2026-03-31)
+
+**Phases completed:** Code-First workflow, 16 ACs, 123 tests
+
+**Key accomplishments:**
+
+- Monorepo workspace detection (NX, Turbo, pnpm) with auto-discovery of apps and packages
+- --app flag for command scoping + SESSION.json for session-level auto-scoping
+- Per-app .planning/ directories with independent CODE-INVENTORY.md, PRD.md, FEATURES.md
+- Package manifest generation (API surface summaries for shared packages)
+- Monorepo migration (--migrate) for existing projects with per-app keep/archive/replace
+- /gsd:start for automatic session initialization with default app restoration
+- /gsd:switch-app for mid-session app switching with --default for persistent preference
+- /gsd:iterate --auto for multi-iteration autonomous loop (max 5 rounds)
+- 5 new CJS modules (workspace-detector, manifest-generator, monorepo-context, monorepo-migrator, session-manager)
+- 123 tests across 8 CJS modules, all green
+
+---
+
 ## v1.2 Brainstorm & Feature Map (Shipped: 2026-03-30)
 
 **Phases completed:** 4 phases (Code-First workflow: PRD → prototype → iterate), 15 commits, 18 requirements

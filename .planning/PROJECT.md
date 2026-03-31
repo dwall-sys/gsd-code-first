@@ -4,7 +4,7 @@
 
 A fork of the GSD (Get Shit Done) framework that implements the "Code-First" principle. Developers brainstorm ideas in conversation, build prototypes from PRDs, annotate code with @gsd-tags, iterate with AI planning, run tests, and get two-stage reviews -- all from the CLI. Installable as `npx gsd-code-first@latest`.
 
-Shipped v1.2 with brainstorm command, feature map, and architecture mode.
+Shipped v1.3 with monorepo mode, session management, and migration tooling. Next: v2.0 as independent engineering framework.
 
 ## Core Value
 
