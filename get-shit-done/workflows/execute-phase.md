@@ -68,6 +68,25 @@ AGENT_SKILLS=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" agent-skills
 
 Parse JSON for: `executor_model`, `verifier_model`, `commit_docs`, `parallelization`, `branching_strategy`, `branch_name`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `state_exists`, `roadmap_exists`, `phase_req_ids`.
 
+Read worktree config:
+
+```bash
+USE_WORKTREES=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get workflow.use_worktrees 2>/dev/null || echo "true")
+```
+
+When `USE_WORKTREES` is `false`, all executor agents run without `isolation="worktree"` — they execute sequentially on the main working tree instead of in parallel worktrees.
+
+Read context window size for adaptive prompt enrichment:
+
+```bash
+CONTEXT_WINDOW=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get context_window 2>/dev/null || echo "200000")
+```
+
+When `CONTEXT_WINDOW >= 500000` (1M-class models), subagent prompts include richer context:
+- Executor agents receive prior wave SUMMARY.md files and the phase CONTEXT.md/RESEARCH.md
+- Verifier agents receive all PLAN.md, SUMMARY.md, CONTEXT.md files plus REQUIREMENTS.md
+- This enables cross-phase awareness and history-aware verification
+
 **If `phase_found` is false:** Error — phase directory not found.
 **If `plan_count` is 0:** Error — no plans found in phase.
 **If `state_exists` is false but `.planning/` exists:** Offer reconstruct or continue.
@@ -223,9 +242,12 @@ Execute each selected wave in sequence. Within a wave: parallel if `PARALLELIZAT
    For 200k models, this keeps orchestrator context lean (~10-15%).
    For 1M+ models (Opus 4.6, Sonnet 4.6), richer context can be passed directly.
 
+   **Worktree mode** (`USE_WORKTREES` is not `false`):
+
    ```
    Task(
      subagent_type="gsd-executor",
+     description="Execute plan {plan_number} of phase {phase_number}",
      model="{executor_model}",
      isolation="worktree",
      prompt="
@@ -255,6 +277,11 @@ Execute each selected wave in sequence. Within a wave: parallel if `PARALLELIZAT
        - .planning/PROJECT.md (Project context — core value, requirements, evolution rules)
        - .planning/STATE.md (State)
        - .planning/config.json (Config, if exists)
+       ${CONTEXT_WINDOW >= 500000 ? `
+       - ${phase_dir}/*-CONTEXT.md (User decisions from discuss-phase — honors locked choices)
+       - ${phase_dir}/*-RESEARCH.md (Technical research — pitfalls and patterns to follow)
+       - ${prior_wave_summaries} (SUMMARY.md files from earlier waves in this phase — what was already built)
+       ` : ''}
        - ./CLAUDE.md (Project instructions, if exists — follow project-specific guidelines and coding conventions)
        - .claude/skills/ or .agents/skills/ (Project skills, if either exists — list skills, read SKILL.md for each, follow relevant rules during implementation)
        </files_to_read>
@@ -278,6 +305,19 @@ Execute each selected wave in sequence. Within a wave: parallel if `PARALLELIZAT
      "
    )
    ```
+
+   **Sequential mode** (`USE_WORKTREES` is `false`):
+
+   Omit `isolation="worktree"` from the Task call. Replace the `<parallel_execution>` block with:
+
+   ```
+       <sequential_execution>
+       You are running as a SEQUENTIAL executor agent on the main working tree.
+       Use normal git commits (with hooks). Do NOT use --no-verify.
+       </sequential_execution>
+   ```
+
+   When worktrees are disabled, execute plans **one at a time within each wave** (sequential) regardless of the `PARALLELIZATION` setting — multiple agents writing to the same working tree concurrently would cause conflicts.
 
 3. **Wait for all agents in wave to complete.**
 
@@ -312,6 +352,39 @@ Execute each selected wave in sequence. Within a wave: parallel if `PARALLELIZAT
    git hook run pre-commit 2>&1 || echo "⚠ Pre-commit hooks failed — review before continuing"
    ```
    If hooks fail: report the failure and ask "Fix hook issues now?" or "Continue to next wave?"
+
+4.5. **Worktree cleanup (when `isolation="worktree"` was used):**
+
+   When executor agents ran in worktree isolation, their commits land on temporary branches in separate working trees. After the wave completes, merge these changes back and clean up:
+
+   ```bash
+   # List worktrees created by this wave's agents
+   WORKTREES=$(git worktree list --porcelain | grep "^worktree " | grep -v "$(pwd)$" | sed 's/^worktree //')
+
+   for WT in $WORKTREES; do
+     # Get the branch name for this worktree
+     WT_BRANCH=$(git -C "$WT" rev-parse --abbrev-ref HEAD 2>/dev/null)
+     if [ -n "$WT_BRANCH" ] && [ "$WT_BRANCH" != "HEAD" ]; then
+       CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+       # Merge the worktree branch into the current branch
+       git merge "$WT_BRANCH" --no-edit -m "chore: merge executor worktree ($WT_BRANCH)" 2>&1 || {
+         echo "⚠ Merge conflict from worktree $WT_BRANCH — resolve manually"
+         continue
+       }
+
+       # Remove the worktree
+       git worktree remove "$WT" --force 2>/dev/null || true
+
+       # Delete the temporary branch
+       git branch -D "$WT_BRANCH" 2>/dev/null || true
+     fi
+   done
+   ```
+
+   **If `workflow.use_worktrees` is `false`:** Agents ran on the main working tree — skip this step entirely.
+
+   **If no worktrees found:** Skip silently — agents may have been spawned without worktree isolation.
 
 5. **Report completion — spot-check claims first:**
 
@@ -435,6 +508,27 @@ After all waves:
 
 ### Issues Encountered
 [Aggregate from SUMMARYs, or "None"]
+```
+
+**Security gate check:**
+```bash
+SECURITY_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get workflow.security_enforcement --raw 2>/dev/null || echo "true")
+SECURITY_FILE=$(ls "${PHASE_DIR}"/*-SECURITY.md 2>/dev/null | head -1)
+```
+
+If `SECURITY_CFG` is `false`: skip.
+
+If `SECURITY_CFG` is `true` AND `SECURITY_FILE` is empty (no SECURITY.md yet):
+Include in the next-steps routing output:
+```
+⚠ Security enforcement enabled — run before advancing:
+  /gsd:secure-phase {PHASE} ${GSD_WS}
+```
+
+If `SECURITY_CFG` is `true` AND SECURITY.md exists: check frontmatter `threats_open`. If > 0:
+```
+⚠ Security gate: {threats_open} threats open
+  /gsd:secure-phase {PHASE} — resolve before advancing
 ```
 </step>
 
@@ -580,6 +674,72 @@ Options:
 Use AskUserQuestion to present the options.
 </step>
 
+<step name="schema_drift_gate">
+Post-execution schema drift detection. Catches false-positive verification where
+build/types pass because TypeScript types come from config, not the live database.
+
+**Run after execution completes but BEFORE verification marks success.**
+
+```bash
+SCHEMA_DRIFT=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" verify schema-drift "${PHASE_NUMBER}" 2>/dev/null)
+```
+
+Parse JSON result for: `drift_detected`, `blocking`, `schema_files`, `orms`, `unpushed_orms`, `message`.
+
+**If `drift_detected` is false:** Skip to verify_phase_goal.
+
+**If `drift_detected` is true AND `blocking` is true:**
+
+Check for override:
+```bash
+SKIP_SCHEMA=$(echo "${GSD_SKIP_SCHEMA_CHECK:-false}")
+```
+
+**If `SKIP_SCHEMA` is `true`:**
+
+Display:
+```
+⚠ Schema drift detected but GSD_SKIP_SCHEMA_CHECK=true — bypassing gate.
+
+Schema files changed: {schema_files}
+ORMs requiring push: {unpushed_orms}
+
+Proceeding to verification (database may be out of sync).
+```
+→ Continue to verify_phase_goal.
+
+**If `SKIP_SCHEMA` is not `true`:**
+
+BLOCK verification. Display:
+
+```
+## BLOCKED: Schema Drift Detected
+
+Schema-relevant files changed during this phase but no database push command
+was executed. Build and type checks pass because TypeScript types come from
+config, not the live database — verification would produce a false positive.
+
+Schema files changed: {schema_files}
+ORMs requiring push: {unpushed_orms}
+
+Required push commands:
+{For each unpushed ORM, show the push command from the message}
+
+Options:
+1. Run push command now (recommended) — execute the push, then re-verify
+2. Skip schema check (GSD_SKIP_SCHEMA_CHECK=true) — bypass this gate
+3. Abort — stop execution and investigate
+```
+
+If `TEXT_MODE` is true, present as a plain-text numbered list. Otherwise use AskUserQuestion.
+
+**If user selects option 1:** Present the specific push command(s) to run. After user confirms execution, re-run the schema drift check. If it passes, continue to verify_phase_goal.
+
+**If user selects option 2:** Set override and continue to verify_phase_goal.
+
+**If user selects option 3:** Stop execution. Report partial completion.
+</step>
+
 <step name="verify_phase_goal">
 Verify phase achieved its GOAL, not just completed tasks.
 
@@ -589,6 +749,7 @@ VERIFIER_SKILLS=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" agent-ski
 
 ```
 Task(
+  description="Verify phase {phase_number} goal achievement",
   prompt="Verify phase {phase_number} goal achievement.
 Phase directory: {phase_dir}
 Phase goal: {goal from ROADMAP.md}
@@ -596,6 +757,18 @@ Phase requirement IDs: {phase_req_ids}
 Check must_haves against actual codebase.
 Cross-reference requirement IDs from PLAN frontmatter against REQUIREMENTS.md — every ID MUST be accounted for.
 Create VERIFICATION.md.
+
+<files_to_read>
+Read these files before verification:
+- {phase_dir}/*-PLAN.md (All plans — understand intent, check must_haves)
+- {phase_dir}/*-SUMMARY.md (All summaries — cross-reference claimed vs actual)
+- .planning/REQUIREMENTS.md (Requirement traceability)
+${CONTEXT_WINDOW >= 500000 ? `- {phase_dir}/*-CONTEXT.md (User decisions — verify they were honored)
+- {phase_dir}/*-RESEARCH.md (Known pitfalls — check for traps)
+- Prior VERIFICATION.md files from earlier phases (regression check)
+` : ''}
+</files_to_read>
+
 ${VERIFIER_SKILLS}",
   subagent_type="gsd-verifier",
   model="{verifier_model}"

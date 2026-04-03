@@ -93,6 +93,7 @@
  *   verify commits <h1> [h2] ...      Batch verify commit hashes
  *   verify artifacts <plan-file>       Check must_haves.artifacts
  *   verify key-links <plan-file>       Check must_haves.key_links
+ *   verify schema-drift <phase> [--skip]  Detect schema file changes without push
  *
  * Template Fill:
  *   template fill summary --phase N    Create pre-filled SUMMARY.md
@@ -134,6 +135,7 @@
  *   init map-codebase                  All context for map-codebase workflow
  *   init progress                      All context for progress workflow
  *
+<<<<<<< HEAD
  * Test Detection:
  *   detect-test-framework [dir]        Detect test framework from package.json
  *                                      Outputs: { framework, testCommand, filePattern }
@@ -147,6 +149,10 @@
  *   session-get                         Print current SESSION.json or "No session"
  *   session-set --app <path>            Set active app in SESSION.json
  *   session-set --global                Clear active app (root/global scope)
+=======
+ * Documentation:
+ *   docs-init                            Project context for docs-update workflow
+>>>>>>> upstream/main
  */
 
 const fs = require('fs');
@@ -166,7 +172,11 @@ const frontmatter = require('./lib/frontmatter.cjs');
 const profilePipeline = require('./lib/profile-pipeline.cjs');
 const profileOutput = require('./lib/profile-output.cjs');
 const workstream = require('./lib/workstream.cjs');
+<<<<<<< HEAD
 const arcScanner = require('./lib/arc-scanner.cjs');
+=======
+const docs = require('./lib/docs.cjs');
+>>>>>>> upstream/main
 
 // ─── Arg parsing helpers ──────────────────────────────────────────────────────
 
@@ -289,7 +299,7 @@ async function main() {
   const command = args[0];
 
   if (!command) {
-    error('Usage: gsd-tools <command> [args] [--raw] [--pick <field>] [--cwd <path>] [--ws <name>]\nCommands: state, resolve-model, find-phase, commit, verify-summary, verify, frontmatter, template, generate-slug, current-timestamp, list-todos, verify-path-exists, config-ensure-section, config-new-project, init, workstream');
+    error('Usage: gsd-tools <command> [args] [--raw] [--pick <field>] [--cwd <path>] [--ws <name>]\nCommands: state, resolve-model, find-phase, commit, verify-summary, verify, frontmatter, template, generate-slug, current-timestamp, list-todos, verify-path-exists, config-ensure-section, config-new-project, init, workstream, docs-init');
   }
 
   // Multi-repo guard: resolve project root for commands that read/write .planning/.
@@ -440,6 +450,11 @@ async function runCommand(command, args, cwd, raw) {
       break;
     }
 
+    case 'check-commit': {
+      commands.cmdCheckCommit(cwd, raw);
+      break;
+    }
+
     case 'commit-to-subrepo': {
       const message = args[1];
       const filesIndex = args.indexOf('--files');
@@ -513,8 +528,11 @@ async function runCommand(command, args, cwd, raw) {
         verify.cmdVerifyArtifacts(cwd, args[2], raw);
       } else if (subcommand === 'key-links') {
         verify.cmdVerifyKeyLinks(cwd, args[2], raw);
+      } else if (subcommand === 'schema-drift') {
+        const skipFlag = args.includes('--skip');
+        verify.cmdVerifySchemaDrift(cwd, args[2], skipFlag, raw);
       } else {
-        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links');
+        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, schema-drift');
       }
       break;
     }
@@ -925,6 +943,7 @@ async function runCommand(command, args, cwd, raw) {
       break;
     }
 
+<<<<<<< HEAD
     case 'extract-tags': {
       const allArgs = args.slice(1);
       const namedFlags = ['phase', 'type', 'format', 'output', 'app'];
@@ -1130,6 +1149,12 @@ async function runCommand(command, args, cwd, raw) {
       const appPath = args[1] || null;
       const updated = sessionManager.setDefaultApp(cwd, appPath);
       core.output(updated, raw, JSON.stringify(updated, null, 2));
+=======
+    // ─── Documentation ────────────────────────────────────────────────────
+
+    case 'docs-init': {
+      docs.cmdDocsInit(cwd, raw);
+>>>>>>> upstream/main
       break;
     }
 

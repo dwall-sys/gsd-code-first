@@ -108,6 +108,7 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     // Branch name (pre-computed)
     branch_name: config.branching_strategy === 'phase' && phaseInfo
       ? config.phase_branch_template
+          .replace('{project}', config.project_code || '')
           .replace('{phase}', phaseInfo.phase_number)
           .replace('{slug}', phaseInfo.phase_slug || 'phase')
       : config.branching_strategy === 'milestone'
@@ -779,6 +780,7 @@ function cmdInitMapCodebase(cwd, raw) {
     commit_docs: config.commit_docs,
     search_gitignored: config.search_gitignored,
     parallelization: config.parallelization,
+    subagent_timeout: config.subagent_timeout,
 
     // Paths
     codebase_dir: '.planning/codebase',
